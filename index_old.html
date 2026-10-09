@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>3D website — wandelbare demo</title>
+<style>
+body{margin:0;overflow:hidden;background:#182335;font:15px system-ui;color:white}canvas{display:block}
+#help{position:fixed;top:16px;left:16px;max-width:340px;background:#101827dc;padding:16px;border-radius:12px;line-height:1.5;z-index:2}
+button{padding:10px 16px;margin-top:10px;border:0;border-radius:7px;background:#63ddbd;font-weight:700;cursor:pointer}
+#cross{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;pointer-events:none}
+#target{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#101827dc;padding:12px 18px;border-radius:8px;pointer-events:none;text-align:center}
+#status{font-size:13px;color:#b8c8db;margin-top:8px}
+a{color:#63ddbd}
+</style>
+</head>
+<body>
+<div id="help"><strong>Wandelbare 3D-website</strong><br>
+WASD / pijltjes: bewegen<br>Muis: rondkijken • Shift: sneller<br>Klik op een gekleurd object: open link<br>Esc: muis vrijgeven<br>
+<button id="start">Start rondlopen</button>
+<div id="status">De 3D-bibliotheek laden…</div>
+<details><summary>Gewone links als alternatief</summary><a href="https://threejs.org/" target="_blank" rel="noopener">Three.js</a> · <a href="https://aframe.io/" target="_blank" rel="noopener">A-Frame</a> · <a href="https://modelviewer.dev/" target="_blank" rel="noopener">Model Viewer</a></details>
+</div>
+<div id="cross">+</div><div id="target">Klik op ‘Start rondlopen’</div>
+<script type="module">
+const status = document.querySelector('#status');
+try {
+ const THREE = await import('https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js');
+ const scene = new THREE.Scene();
+ scene.background = new THREE.Color(0x182335);
+ scene.fog = new THREE.Fog(0x182335, 20, 60);
+ const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 100);
+ camera.position.set(0, 1.7, 9);
+ camera.rotation.order = 'YXZ';
+ const renderer = new THREE.WebGLRenderer({antialias:true});
+ renderer.setSize(innerWidth, innerHeight);
+ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+ document.body.appendChild(renderer.domElement);
+ scene.add(new THREE.HemisphereLight(0xcce7ff, 0x344334, 2));
+ const sun = new THREE.DirectionalLight(0xffffff, 3);
+ sun.position.set(5, 10, 4); scene.add(sun);
+ const floor = new THREE.Mesh(new THREE.PlaneGeometry(50,50), new THREE.MeshStandardMaterial({color:0x35465a,roughness:1}));
+ floor.rotation.x = -Math.PI/2; scene.add(floor);
+ const grid = new THREE.GridHelper(50,50,0x8094aa,0x4d6075); grid.position.y=.01; scene.add(grid);
+ const links=[];
+ function label(text,x,z){
+  const c=document.createElement('canvas'); c.width=768;c.height=160;
+  const ctx=c.getContext('2d');ctx.fillStyle='#101827';ctx.fillRect(0,0,768,160);
+  ctx.fillStyle='white';ctx.font='bold 56px sans-serif';ctx.textAlign='center';ctx.fillText(text,384,98);
+  const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c)}));
+  sprite.position.set(x,3.4,z);sprite.scale.set(4,.83,1);scene.add(sprite);
+ }
+ function link(geometry,color,x,z,title,url){
+  const obj=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color,roughness:.35,metalness:.1}));
+  obj.position.set(x,1.2,z);obj.userData={title,url};scene.add(obj);links.push(obj);label(title,x,z);
+ }
+ link(new THREE.BoxGeometry(2,2.4,2),0xff9955,-5,0,'Georgië','https://photos.app.goo.gl/VvYa1KCkWFjQkYjx8');
+ link(new THREE.SphereGeometry(1.2,32,24),0x60d9c3,0,-3,'Bulgarije','https://photos.app.goo.gl/JpmaoD9XZU9JVygc8');
+ link(new THREE.CylinderGeometry(1.1,1.1,2.4,32),0x9988ff,5,0,'Montenegro','https://photos.app.goo.gl/nwTJQ991okddfWQU7');
+ const keys=new Set();let yaw=0,pitch=0,selected=null,previous=performance.now();
+ const raycaster=new THREE.Raycaster();const center=new THREE.Vector2(0,0);
+ const target=document.querySelector('#target');const start=document.querySelector('#start');
+ const locked=()=>document.pointerLockElement===renderer.domElement;
+ start.onclick=async()=>{try{await renderer.domElement.requestPointerLock()}catch(e){status.textContent='Muisvergrendeling geweigerd: '+e.message}};
+ document.addEventListener('pointerlockchange',()=>{
+  keys.clear();start.style.display=locked()?'none':'';
+  status.textContent=locked()?'Richt het kruis op een object en klik.':'Klik op Start om de muis vast te zetten.';
+ });
+ document.addEventListener('mousemove',e=>{if(!locked())return;yaw-=e.movementX*.002;pitch=Math.max(-1.45,Math.min(1.45,pitch-e.movementY*.002));camera.rotation.set(pitch,yaw,0)});
+ document.addEventListener('keydown',e=>{if(!locked())return;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();keys.add(e.code)});
+ document.addEventListener('keyup',e=>keys.delete(e.code));
+ window.addEventListener('blur',()=>keys.clear());
+ renderer.domElement.addEventListener('click',()=>{
+  if(locked()&&selected){
+   const w=window.open(selected.userData.url,'_blank','noopener,noreferrer');
+   document.exitPointerLock();
+  }
+ });
+ window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+ status.textContent='Klaar. Internet nodig voor de bibliotheek; bediening met toetsenbord en muis.';
+ function animate(now){
+  requestAnimationFrame(animate);
+  const dt=Math.min((now-previous)/1000,.05);previous=now;
+  if(locked()){
+   let forward=Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'));
+   let side=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'));
+   const length=Math.hypot(forward,side)||1;forward/=length;side/=length;
+   const speed=(keys.has('ShiftLeft')||keys.has('ShiftRight')?8:4)*dt;
+   camera.position.x+=(-Math.sin(yaw)*forward+Math.cos(yaw)*side)*speed;
+   camera.position.z+=(-Math.cos(yaw)*forward-Math.sin(yaw)*side)*speed;
+   camera.position.x=THREE.MathUtils.clamp(camera.position.x,-24,24);
+   camera.position.z=THREE.MathUtils.clamp(camera.position.z,-24,24);
+  }
+  camera.updateMatrixWorld();
+  raycaster.setFromCamera(center,camera);
+  const hits=raycaster.intersectObjects(links,false);
+  selected=hits.length?hits[0].object:null;
+  for(const obj of links){obj.material.emissive.setHex(obj===selected?0x333333:0x000000)}
+  target.textContent=locked()?(selected?'Klik om '+selected.userData.title+' te openen ↗':'Richt het kruis op een gekleurd object'):'Klik op ‘Start rondlopen’';
+  renderer.render(scene,camera);
+ }
+ requestAnimationFrame(animate);
+} catch(e){status.textContent='Laden mislukt. Controleer internet/WebGL: '+e.message;console.error(e)}
+</script>
+</body>
+</html>
