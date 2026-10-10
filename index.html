@@ -3,112 +3,128 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>3D website — touch en desktop</title>
+<title>Virtuele fotogalerij</title>
 <style>
-*{box-sizing:border-box}body{margin:0;overflow:hidden;background:#182335;font:14px system-ui;color:white}canvas{display:block;touch-action:none}
-#help{position:fixed;top:max(12px,env(safe-area-inset-top));left:12px;max-width:min(340px,calc(100vw - 24px));background:#101827e8;padding:12px;border-radius:12px;line-height:1.5;z-index:3}
-#help summary{cursor:pointer;font-weight:700}#status{font-size:12px;color:#b8c8db;margin-top:6px}
-button,.open{display:inline-block;padding:10px 14px;border:0;border-radius:7px;background:#63ddbd;color:#102524;font:700 14px system-ui;cursor:pointer;text-decoration:none}
-#start{margin-top:8px}a{color:#63ddbd}#cross{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;pointer-events:none}
-#target{position:fixed;bottom:max(18px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#101827e8;padding:10px 14px;border-radius:10px;text-align:center;z-index:3;max-width:calc(100vw - 32px);width:330px}
-#open{margin-top:8px;color:#102524}#open[hidden]{display:none}#hint{font-size:12px;color:#b8c8db;margin-top:4px}
-#stick{position:fixed;left:max(18px,env(safe-area-inset-left));bottom:calc(100px + env(safe-area-inset-bottom));width:126px;height:126px;border:2px solid #ffffff66;border-radius:50%;background:#10182788;touch-action:none;z-index:4;user-select:none}
-#knob{position:absolute;left:37px;top:37px;width:48px;height:48px;border-radius:50%;background:#63ddbdcc;pointer-events:none}
-#sticklabel{position:absolute;top:132px;width:100%;text-align:center;font-size:12px;pointer-events:none}
-#touchToggle{margin-top:8px;background:#c6d8e8}body:not(.touch) #stick{display:none}
-@media(max-height:450px){#help{max-width:260px;padding:8px}#stick{bottom:36px;width:110px;height:110px}#knob{left:29px;top:29px}#sticklabel{top:114px}#target{left:auto;right:12px;transform:none;width:230px;bottom:12px}}
+*{box-sizing:border-box}body{margin:0;overflow:hidden;background:#182335;color:white;font:14px system-ui}canvas{display:block;touch-action:none}
+#panel{position:fixed;top:max(12px,env(safe-area-inset-top));left:12px;z-index:5;background:#101827ed;border-radius:12px;padding:12px;width:min(340px,calc(100vw - 24px));line-height:1.5}summary{font-weight:700;cursor:pointer}#status{font-size:12px;color:#b8c8db;margin-top:6px}button,.open{display:inline-block;background:#63ddbd;border:0;border-radius:7px;padding:10px 14px;color:#102524;font:700 14px system-ui;cursor:pointer;text-decoration:none;margin-top:8px}a{color:#63ddbd}input{max-width:100%}#cross{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;font-size:24px}
+#target{position:fixed;bottom:max(14px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#101827ed;border-radius:12px;padding:10px 14px;text-align:center;width:min(330px,calc(100vw - 24px));z-index:4}#open[hidden]{display:none}#hint{font-size:12px;color:#b8c8db;margin-top:5px}
+#stick{position:fixed;left:max(18px,env(safe-area-inset-left));bottom:calc(120px + env(safe-area-inset-bottom));width:126px;height:126px;border-radius:50%;border:2px solid #ffffff77;background:#10182799;touch-action:none;user-select:none;z-index:6}#knob{position:absolute;left:37px;top:37px;width:48px;height:48px;border-radius:50%;background:#63ddbdcc;pointer-events:none}#stick span{position:absolute;top:132px;text-align:center;width:100%;font-size:12px;pointer-events:none}body:not(.touch) #stick{display:none}
+@media(max-height:460px){#panel{max-width:260px;padding:8px}#stick{bottom:34px}#target{left:auto;right:12px;transform:none;width:230px}}
 </style>
 </head>
 <body>
-<div id="help">
-<details><summary>3D-albums — bediening</summary>
-<div>Telefoon: joystick links = lopen; over het beeld slepen = rondkijken; tik op een object om te selecteren.<br>Computer: WASD / pijltjes; slepen met de muis om rond te kijken. Optioneel: muis vastzetten.<br>Gebruik ‘Open album’ om de geselecteerde link te openen. Esc geeft de muis vrij.</div>
-<button id="start">Muis vastzetten</button>
-<button id="touchToggle">Joystick tonen/verbergen</button>
-<p>Directe links:<br><a href="https://photos.app.goo.gl/VvYa1KCkWFjQkYjx8" target="_blank" rel="noopener noreferrer">Georgië</a> · <a href="https://photos.app.goo.gl/JpmaoD9XZU9JVygc8" target="_blank" rel="noopener noreferrer">Bulgarije</a> · <a href="https://photos.app.goo.gl/nwTJQ991okddfWQU7" target="_blank" rel="noopener noreferrer">Montenegro</a></p>
-</details><div id="status">De 3D-bibliotheek laden…</div>
-</div>
-<div id="cross">+</div>
-<div id="stick" aria-label="Virtuele joystick"><div id="knob"></div><div id="sticklabel">Lopen</div></div>
-<div id="target"><div id="selection">Tik of klik op een gekleurd object</div><a id="open" class="open" target="_blank" rel="noopener noreferrer" hidden>Open album ↗</a><div id="hint">Slepen = rondkijken</div></div>
+<div id="panel"><details><summary>Fotogalerij — bediening & afbeeldingen</summary>
+<p>Telefoon: joystick = lopen; over het beeld slepen = rondkijken; kort tikken op een afbeelding = selecteren.</p>
+<p>Computer: WASD / pijltjes = lopen; Shift = sneller; muis slepen = rondkijken. Optioneel kun je de muis vastzetten; Esc geeft hem vrij.</p>
+<button id="lock">Muis vastzetten</button> <button id="toggle">Joystick tonen/verbergen</button>
+<p>Selecteer een afbeelding en vervang die door een eigen foto:<br><input id="upload" type="file" accept="image/*"><br><small>De foto blijft lokaal in deze sessie. Er wordt niets geüpload. Herladen herstelt de voorbeeldafbeeldingen.</small></p>
+<p>Directe albumlinks:<br><a href="https://photos.app.goo.gl/VvYa1KCkWFjQkYjx8" target="_blank" rel="noopener noreferrer">Georgië</a> · <a href="https://photos.app.goo.gl/JpmaoD9XZU9JVygc8" target="_blank" rel="noopener noreferrer">Bulgarije</a> · <a href="https://photos.app.goo.gl/nwTJQ991okddfWQU7" target="_blank" rel="noopener noreferrer">Montenegro</a></p>
+</details><div id="status">3D-bibliotheek laden…</div></div>
+<div id="cross">+</div><div id="stick"><div id="knob"></div><span>Lopen</span></div>
+<div id="target"><div id="selection">Tik of klik op een afbeelding</div><a id="open" class="open" target="_blank" rel="noopener noreferrer" hidden>Open album ↗</a><div id="hint">Slepen = rondkijken</div></div>
 <script type="module">
 const status=document.querySelector('#status');
-const touchToggle=document.querySelector('#touchToggle');
-document.body.classList.toggle('touch',matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints>0);
+document.body.classList.toggle('touch',matchMedia('(pointer: coarse)').matches||navigator.maxTouchPoints>0);
 try {
  const THREE=await import('https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js');
- const scene=new THREE.Scene();scene.background=new THREE.Color(0x182335);scene.fog=new THREE.Fog(0x182335,20,60);
- const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,100);camera.position.set(0,1.7,9);camera.rotation.order='YXZ';
- const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(renderer.domElement);
- const canvas=renderer.domElement;
- scene.add(new THREE.HemisphereLight(0xcce7ff,0x344334,2));
- const sun=new THREE.DirectionalLight(0xffffff,3);sun.position.set(5,10,4);scene.add(sun);
+ const scene=new THREE.Scene();scene.background=new THREE.Color(0x182335);scene.fog=new THREE.Fog(0x182335,18,55);
+ const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,100);camera.position.set(0,1.7,6);camera.rotation.order='YXZ';
+ const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(renderer.domElement);const canvas=renderer.domElement;
+ scene.add(new THREE.HemisphereLight(0xdcecff,0x454238,1.5));const sun=new THREE.DirectionalLight(0xffffff,1.5);sun.position.set(5,10,4);scene.add(sun);
  const floor=new THREE.Mesh(new THREE.PlaneGeometry(50,50),new THREE.MeshStandardMaterial({color:0x35465a,roughness:1}));floor.rotation.x=-Math.PI/2;scene.add(floor);
  const grid=new THREE.GridHelper(50,50,0x8094aa,0x4d6075);grid.position.y=.01;scene.add(grid);
- const links=[];
- function label(text,x,z){
-  const c=document.createElement('canvas');c.width=768;c.height=160;const ctx=c.getContext('2d');ctx.fillStyle='#101827';ctx.fillRect(0,0,768,160);ctx.fillStyle='white';ctx.font='bold 56px sans-serif';ctx.textAlign='center';ctx.fillText(text,384,98);
-  const texture=new THREE.CanvasTexture(c);texture.colorSpace=THREE.SRGBColorSpace;
-  const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture}));sprite.position.set(x,3.4,z);sprite.scale.set(4,.83,1);scene.add(sprite);
+ const links=[],pickables=[],obstacles=[];
+ const wallMaterial=new THREE.MeshStandardMaterial({color:0xd6d8d1,roughness:1});
+ // One unit represents one metre. This demo uses horizontal/vertical walls.
+ function wall(x1,z1,x2,z2,height=2.8,thickness=.15){
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(x2-x1,z2-z1),height,thickness),wallMaterial);
+  mesh.position.set((x1+x2)/2,height/2,(z1+z2)/2);mesh.rotation.y=-Math.atan2(z2-z1,x2-x1);scene.add(mesh);mesh.updateMatrixWorld(true);
+  obstacles.push(new THREE.Box3().setFromObject(mesh));pickables.push(mesh);return mesh;
  }
- function link(geometry,color,x,z,title,url){const obj=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color,roughness:.35,metalness:.1}));obj.position.set(x,1.2,z);obj.userData={title,url};scene.add(obj);links.push(obj);label(title,x,z)}
- link(new THREE.BoxGeometry(2,2.4,2),0xff9955,-5,0,'Georgië','https://photos.app.goo.gl/VvYa1KCkWFjQkYjx8');
- link(new THREE.SphereGeometry(1.2,32,24),0x60d9c3,0,-3,'Bulgarije','https://photos.app.goo.gl/JpmaoD9XZU9JVygc8');
- link(new THREE.CylinderGeometry(1.1,1.1,2.4,32),0x9988ff,5,0,'Montenegro','https://photos.app.goo.gl/nwTJQ991okddfWQU7');
+ // An 8 x 6 m room with a 1.4 m entrance at the front.
+ wall(-4,-3,4,-3);wall(-4,-3,-4,3);wall(4,-3,4,3);wall(-4,3,-.7,3);wall(.7,3,4,3);
+ const lintel=new THREE.Mesh(new THREE.BoxGeometry(1.4,.5,.15),wallMaterial);lintel.position.set(0,2.55,3);scene.add(lintel);pickables.push(lintel);
+ const ceiling=new THREE.Mesh(new THREE.PlaneGeometry(8,6),new THREE.MeshStandardMaterial({color:0xbac1c5,roughness:1,side:THREE.DoubleSide}));ceiling.rotation.x=Math.PI/2;ceiling.position.set(0,2.8,0);scene.add(ceiling);pickables.push(ceiling);
+ const roomFloor=new THREE.Mesh(new THREE.PlaneGeometry(8,6),new THREE.MeshStandardMaterial({color:0x967e60,roughness:1}));roomFloor.rotation.x=-Math.PI/2;roomFloor.position.y=.025;scene.add(roomFloor);
+ const lamp=new THREE.PointLight(0xffefd5,45,14,2);lamp.position.set(0,2.5,0);scene.add(lamp);
+ const lampMesh=new THREE.Mesh(new THREE.SphereGeometry(.12,16,12),new THREE.MeshBasicMaterial({color:0xfff4dc}));lampMesh.position.copy(lamp.position);scene.add(lampMesh);
+ function poster(title,top,bottom){
+  const c=document.createElement('canvas');c.width=1200;c.height=800;const ctx=c.getContext('2d');const g=ctx.createLinearGradient(0,0,0,800);g.addColorStop(0,top);g.addColorStop(1,bottom);ctx.fillStyle=g;ctx.fillRect(0,0,1200,800);
+  ctx.fillStyle='#ffffffaa';ctx.beginPath();ctx.arc(950,165,70,0,Math.PI*2);ctx.fill();
+  for(let layer=0;layer<3;layer++){ctx.fillStyle=['#385477','#28435c','#1a3044'][layer];ctx.beginPath();ctx.moveTo(0,800);for(let x=0;x<=1200;x+=100)ctx.lineTo(x,420+layer*95-Math.sin(x*.013+layer)*105);ctx.lineTo(1200,800);ctx.closePath();ctx.fill()}
+  ctx.fillStyle='#101827c9';ctx.fillRect(0,615,1200,185);ctx.fillStyle='white';ctx.textAlign='center';ctx.font='bold 72px system-ui';ctx.fillText(title,600,704);ctx.font='28px system-ui';ctx.fillText('Tik om het album te selecteren',600,759);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
+ }
+ function applyTexture(obj,texture){
+  texture.colorSpace=THREE.SRGBColorSpace;
+  const previous=obj.material.map;obj.material.map=texture;obj.material.needsUpdate=true;previous?.dispose();
+  const ratio=texture.image.width/texture.image.height,width=Math.min(2.4,1.6*ratio),height=width/ratio;
+  obj.geometry.dispose();obj.geometry=new THREE.PlaneGeometry(width,height);
+ }
+ function picture({title,url,x,z,rotation=0,top,bottom,imageUrl=null}){
+  const group=new THREE.Group();group.position.set(x,1.65,z);group.rotation.y=rotation;scene.add(group);
+  const frame=new THREE.Mesh(new THREE.BoxGeometry(2.52,1.72,.045),new THREE.MeshStandardMaterial({color:0x25262b,roughness:.6}));group.add(frame);
+  const image=new THREE.Mesh(new THREE.PlaneGeometry(2.4,1.6),new THREE.MeshStandardMaterial({map:poster(title,top,bottom),roughness:1}));image.position.z=.025;image.userData={title,url};group.add(image);links.push(image);pickables.push(image,frame);
+  // Optional permanent bitmap, e.g. imageUrl: './afbeeldingen/georgie.jpg'.
+  if(imageUrl)new THREE.TextureLoader().load(imageUrl,t=>applyTexture(image,t),undefined,()=>status.textContent='Afbeelding niet geladen: '+imageUrl);
+  return image;
+ }
+ // Edit album URLs and optional imageUrl values here.
+ picture({title:'Georgië',url:'https://photos.app.goo.gl/VvYa1KCkWFjQkYjx8',x:0,z:-2.89,top:'#6da4da',bottom:'#e8d1ac'});
+ picture({title:'Bulgarije',url:'https://photos.app.goo.gl/JpmaoD9XZU9JVygc8',x:-3.89,z:0,rotation:Math.PI/2,top:'#8dbda5',bottom:'#dcebc9'});
+ picture({title:'Montenegro',url:'https://photos.app.goo.gl/nwTJQ991okddfWQU7',x:3.89,z:0,rotation:-Math.PI/2,top:'#bc9ae0',bottom:'#eccba5'});
  const keys=new Set(),raycaster=new THREE.Raycaster(),point=new THREE.Vector2();
- const selection=document.querySelector('#selection'),open=document.querySelector('#open'),hint=document.querySelector('#hint'),start=document.querySelector('#start');
- const stick=document.querySelector('#stick'),knob=document.querySelector('#knob');
- let yaw=0,pitch=0,selected=null,hovered=null,previous=performance.now(),look=null,joyId=null,joyX=0,joyY=0;
+ const selection=document.querySelector('#selection'),open=document.querySelector('#open'),hint=document.querySelector('#hint'),lockButton=document.querySelector('#lock'),stick=document.querySelector('#stick'),knob=document.querySelector('#knob');
+ let yaw=0,pitch=0,selected=null,look=null,joyId=null,joyX=0,joyY=0,previous=performance.now();
  const locked=()=>document.pointerLockElement===canvas;
  function rotate(dx,dy){yaw-=dx*.003;pitch=THREE.MathUtils.clamp(pitch-dy*.003,-1.45,1.45);camera.rotation.set(pitch,yaw,0)}
- function pick(x,y){camera.updateMatrixWorld();scene.updateMatrixWorld(true);point.set(x,y);raycaster.setFromCamera(point,camera);return raycaster.intersectObjects(links,false)[0]?.object||null}
- function select(obj){selected=obj;selection.textContent=obj?obj.userData.title:'Geen object geselecteerd';open.hidden=!obj;if(obj)open.href=obj.userData.url;else open.removeAttribute('href')}
- start.onclick=async()=>{try{if(!canvas.requestPointerLock)throw new Error('Niet beschikbaar; gebruik slepen of de joystick.');await canvas.requestPointerLock()}catch(e){status.textContent=e.message}};
- document.addEventListener('pointerlockchange',()=>{keys.clear();look=null;start.textContent=locked()?'Muis vastgezet — Esc om vrij te geven':'Muis vastzetten';hint.textContent=locked()?'Richt op een object en klik; muis wordt vrijgegeven.':'Slepen = rondkijken';});
+ function pick(x,y){
+  camera.updateMatrixWorld();scene.updateMatrixWorld(true);point.set(x,y);raycaster.setFromCamera(point,camera);
+  const first=raycaster.intersectObjects(pickables,false)[0]?.object;
+  // A wall/frame blocks selection of a picture behind it.
+  return first?.userData.url?first:null;
+ }
+ function select(obj){selected=obj;selection.textContent=obj?obj.userData.title:'Geen afbeelding geselecteerd';open.hidden=!obj;if(obj)open.href=obj.userData.url;else open.removeAttribute('href')}
+ lockButton.onclick=async()=>{try{if(!canvas.requestPointerLock)throw new Error('Gebruik slepen of de joystick: muisvergrendeling is niet beschikbaar.');await canvas.requestPointerLock()}catch(e){status.textContent=e.message}};
+ document.addEventListener('pointerlockchange',()=>{keys.clear();look=null;hint.textContent=locked()?'Richt op een foto en klik; de muis wordt vrijgegeven.':'Slepen = rondkijken'});
  document.addEventListener('mousemove',e=>{if(locked())rotate(e.movementX,e.movementY)});
- canvas.addEventListener('pointerdown',e=>{
-  if(locked()||look||e.button!==0)return;
-  look={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,moved:false};canvas.setPointerCapture(e.pointerId);
- });
- canvas.addEventListener('pointermove',e=>{
-  if(locked()||!look||e.pointerId!==look.id)return;
-  const dx=e.clientX-look.x,dy=e.clientY-look.y;
-  if(Math.hypot(e.clientX-look.startX,e.clientY-look.startY)>8)look.moved=true;
-  if(look.moved)rotate(dx,dy);look.x=e.clientX;look.y=e.clientY;
- });
- canvas.addEventListener('pointerup',e=>{
-  if(!look||look.id!==e.pointerId)return;
-  if(!look.moved){const rect=canvas.getBoundingClientRect();select(pick((e.clientX-rect.left)/rect.width*2-1,1-(e.clientY-rect.top)/rect.height*2))}
-  look=null;
- });
+ canvas.addEventListener('pointerdown',e=>{if(locked()||look||e.button!==0)return;look={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,moved:false};canvas.setPointerCapture(e.pointerId)});
+ canvas.addEventListener('pointermove',e=>{if(locked()||!look||e.pointerId!==look.id)return;const dx=e.clientX-look.x,dy=e.clientY-look.y;if(Math.hypot(e.clientX-look.startX,e.clientY-look.startY)>8)look.moved=true;if(look.moved)rotate(dx,dy);look.x=e.clientX;look.y=e.clientY});
+ canvas.addEventListener('pointerup',e=>{if(!look||look.id!==e.pointerId)return;if(!look.moved){const r=canvas.getBoundingClientRect();select(pick((e.clientX-r.left)/r.width*2-1,1-(e.clientY-r.top)/r.height*2))}look=null});
  canvas.addEventListener('pointercancel',()=>look=null);canvas.addEventListener('lostpointercapture',()=>look=null);
  canvas.addEventListener('click',()=>{if(locked()){select(pick(0,0));document.exitPointerLock()}});
- const moveCodes=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight'];
- document.addEventListener('keydown',e=>{if(!moveCodes.includes(e.code)||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;e.preventDefault();keys.add(e.code)});
+ const codes=['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight'];
+ document.addEventListener('keydown',e=>{if(!codes.includes(e.code)||['INPUT','TEXTAREA','SELECT','BUTTON','A','SUMMARY'].includes(e.target.tagName))return;e.preventDefault();keys.add(e.code)});
  document.addEventListener('keyup',e=>keys.delete(e.code));
  function resetJoy(){joyId=null;joyX=joyY=0;knob.style.transform='translate(0px,0px)'}
  function updateJoy(e){const r=stick.getBoundingClientRect(),radius=(r.width-48)/2-4;let x=e.clientX-r.left-r.width/2,y=e.clientY-r.top-r.height/2;const len=Math.hypot(x,y);if(len>radius){x*=radius/len;y*=radius/len}joyX=x/radius;joyY=y/radius;knob.style.transform=`translate(${x}px,${y}px)`}
  stick.addEventListener('pointerdown',e=>{if(joyId!==null)return;e.preventDefault();joyId=e.pointerId;stick.setPointerCapture(e.pointerId);updateJoy(e)});
  stick.addEventListener('pointermove',e=>{if(e.pointerId===joyId)updateJoy(e)});
- for(const event of ['pointerup','pointercancel','lostpointercapture'])stick.addEventListener(event,e=>{if(e.pointerId===joyId)resetJoy()});
- touchToggle.onclick=()=>{resetJoy();document.body.classList.toggle('touch')};
+ for(const name of ['pointerup','pointercancel','lostpointercapture'])stick.addEventListener(name,e=>{if(e.pointerId===joyId)resetJoy()});
+ document.querySelector('#toggle').onclick=()=>{resetJoy();document.body.classList.toggle('touch')};
  function resetInput(){keys.clear();look=null;resetJoy()}
- window.addEventListener('blur',resetInput);document.addEventListener('visibilitychange',()=>{if(document.hidden)resetInput()});
- open.addEventListener('click',resetInput);
+ window.addEventListener('blur',resetInput);document.addEventListener('visibilitychange',()=>{if(document.hidden)resetInput()});open.addEventListener('click',resetInput);
+ document.querySelector('#upload').addEventListener('change',e=>{
+  const file=e.target.files[0],obj=selected;if(!file)return;
+  if(!obj){status.textContent='Selecteer eerst een afbeelding aan de muur.';e.target.value='';return}
+  const url=URL.createObjectURL(file);
+  new THREE.TextureLoader().load(url,t=>{applyTexture(obj,t);URL.revokeObjectURL(url);status.textContent='Afbeelding vervangen: '+obj.userData.title},undefined,()=>{URL.revokeObjectURL(url);status.textContent='Afbeelding kon niet worden geladen.'});e.target.value='';
+ });
  window.addEventListener('resize',()=>{resetInput();camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
- status.textContent='Klaar — joystick of WASD om te lopen.';
+ function canStand(x,z){const radius=.25;return Math.abs(x)<=24&&Math.abs(z)<=24&&!obstacles.some(b=>x>b.min.x-radius&&x<b.max.x+radius&&z>b.min.z-radius&&z<b.max.z+radius)}
+ status.textContent='Loop rechtdoor door de deur. Tik op een afbeelding.';
  function animate(now){
   requestAnimationFrame(animate);const dt=Math.min((now-previous)/1000,.05);previous=now;
   let forward=Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'))-joyY;
   let side=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+joyX;
   const length=Math.max(1,Math.hypot(forward,side));forward/=length;side/=length;
   const speed=(keys.has('ShiftLeft')||keys.has('ShiftRight')?8:4)*dt;
-  camera.position.x+=(-Math.sin(yaw)*forward+Math.cos(yaw)*side)*speed;
-  camera.position.z+=(-Math.cos(yaw)*forward-Math.sin(yaw)*side)*speed;
-  camera.position.x=THREE.MathUtils.clamp(camera.position.x,-24,24);camera.position.z=THREE.MathUtils.clamp(camera.position.z,-24,24);
-  hovered=locked()?pick(0,0):null;
-  for(const obj of links)obj.material.emissive.setHex(obj===selected?0x444444:obj===hovered?0x222222:0);
-  if(locked())hint.textContent=hovered?'Klik om '+hovered.userData.title+' te selecteren':'Richt op een gekleurd object';
+  const dx=(-Math.sin(yaw)*forward+Math.cos(yaw)*side)*speed,dz=(-Math.cos(yaw)*forward-Math.sin(yaw)*side)*speed;
+  const steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.08));
+  for(let i=0;i<steps;i++){if(canStand(camera.position.x+dx/steps,camera.position.z))camera.position.x+=dx/steps;if(canStand(camera.position.x,camera.position.z+dz/steps))camera.position.z+=dz/steps}
+  const hovered=locked()?pick(0,0):null;
+  for(const obj of links)obj.material.emissive.setHex(obj===selected?0x333333:obj===hovered?0x181818:0);
+  if(locked())hint.textContent=hovered?'Klik om '+hovered.userData.title+' te selecteren':'Richt op een afbeelding';
   renderer.render(scene,camera);
  }
  requestAnimationFrame(animate);
