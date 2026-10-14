@@ -17,6 +17,7 @@
 <p>Telefoon: joystick = lopen; over het beeld slepen = rondkijken; kort tikken op een foto = selecteren.</p>
 <p>Computer: WASD / pijltjes = lopen; Shift = sneller; muis slepen = rondkijken. Je kunt ook de muis vastzetten; Esc geeft hem vrij.</p>
 <button id="lock">Muis vastzetten</button> <button id="toggle">Joystick tonen/verbergen</button>
+<p>Loop door de voordeur naar binnen, ga de gang in en neem de trap naar de verdieping. Georgië hangt achteraan de gang.</p>
 <p>Selecteer een foto en vervang die tijdelijk door een lokaal bestand:<br><input id="upload" type="file" accept="image/*"><br><small>Er wordt niets geüpload. Herladen herstelt de foto's uit de map afbeeldingen.</small></p>
 <p>Directe albumlinks:<br><a href="https://photos.app.goo.gl/VvYa1KCkWFjQkYjx8" target="_blank" rel="noopener noreferrer">Georgië</a> · <a href="https://photos.app.goo.gl/JpmaoD9XZU9JVygc8" target="_blank" rel="noopener noreferrer">Bulgarije</a> · <a href="https://photos.app.goo.gl/nwTJQ991okddfWQU7" target="_blank" rel="noopener noreferrer">Montenegro</a></p>
 </details><div id="status">3D-bibliotheek laden…</div></div>
@@ -27,25 +28,104 @@ const status=document.querySelector('#status');
 document.body.classList.toggle('touch',matchMedia('(pointer: coarse)').matches||navigator.maxTouchPoints>0);
 try {
  const THREE=await import('https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js');
- const scene=new THREE.Scene();scene.background=new THREE.Color(0x182335);scene.fog=new THREE.Fog(0x182335,18,55);
- const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,100);camera.position.set(0,1.7,6);camera.rotation.order='YXZ';
+ const scene=new THREE.Scene();scene.background=new THREE.Color(0x182335);scene.fog=new THREE.Fog(0x182335,25,75);
+ const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,140);camera.position.set(0,1.7,8);camera.rotation.order='YXZ';
  const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(renderer.domElement);const canvas=renderer.domElement;
- scene.add(new THREE.HemisphereLight(0xdcecff,0x454238,1.5));const sun=new THREE.DirectionalLight(0xffffff,1.5);sun.position.set(5,10,4);scene.add(sun);
- const floor=new THREE.Mesh(new THREE.PlaneGeometry(50,50),new THREE.MeshStandardMaterial({color:0x3f7d2e,roughness:1}));floor.rotation.x=-Math.PI/2;scene.add(floor);
- const grid=new THREE.GridHelper(50,50,0x4f8f3c,0x35682a);grid.position.y=.01;scene.add(grid);const links=[],pickables=[],obstacles=[],loadingErrors=[];
+ scene.add(new THREE.HemisphereLight(0xdcecff,0x454238,1.5));const sun=new THREE.DirectionalLight(0xffffff,1.4);sun.position.set(6,14,5);scene.add(sun);
+
+ // ---------------- buiten: gras ----------------
+ const ground=new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.MeshStandardMaterial({color:0x3f7d2e,roughness:1}));
+ ground.rotation.x=-Math.PI/2;scene.add(ground);
+ const grid=new THREE.GridHelper(60,60,0x4f8f3c,0x35682a);grid.position.y=.01;scene.add(grid);
+
+ // ---------------- maten ----------------
+ const LEVEL=2.8;                 // vloerpeil verdieping
+ const WALL_H=LEVEL;              // muurhoogte begane grond
+ const UP_H=2.8;                  // muurhoogte verdieping
+ const ROOF=LEVEL+UP_H;           // 5,6
+ const SLAB_BOT=LEVEL-.14;        // onderkant vloerplaat
+ const TH=.16;                    // muurdikte
+ const STEP_UP=.34;               // maximale opstaphoogte
+ const EYE=1.7;                   // ooghoogte
+
+ // huisgrenzen (buitenmuren op het midden van deze lijnen)
+ const XW=-4, XE=4;               // west / oost
+ const ZS=3, ZN=-10;              // zuid (voordeur) / noord (gang-einde)
+ const ZI=-3;                     // tussenmuur woonkamer/gang
+
+ const links=[],pickables=[],obstacles=[],surfaces=[],loadingErrors=[];
  const wallMaterial=new THREE.MeshStandardMaterial({color:0xd6d8d1,roughness:1});
- // Eén eenheid = één meter. Botsingen gebruiken horizontale/verticale muren.
- function wall(x1,z1,x2,z2,height=2.8,thickness=.15){
-  const mesh=new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(x2-x1,z2-z1),height,thickness),wallMaterial);
-  mesh.position.set((x1+x2)/2,height/2,(z1+z2)/2);mesh.rotation.y=-Math.atan2(z2-z1,x2-x1);scene.add(mesh);mesh.updateMatrixWorld(true);
-  obstacles.push(new THREE.Box3().setFromObject(mesh));pickables.push(mesh);return mesh;
+ const slabMaterial=new THREE.MeshStandardMaterial({color:0xb8b0a2,roughness:1});
+ const stairMaterial=new THREE.MeshStandardMaterial({color:0x8b6f4e,roughness:.9});
+ const railMaterial=new THREE.MeshStandardMaterial({color:0x6c6f73,roughness:.7});
+
+ function surface(x1,z1,x2,z2,y){surfaces.push({minX:Math.min(x1,x2),maxX:Math.max(x1,x2),minZ:Math.min(z1,z2),maxZ:Math.max(z1,z2),y});}
+ function solid(m){m.updateMatrixWorld(true);obstacles.push(new THREE.Box3().setFromObject(m));pickables.push(m);return m;}
+ function wall(x1,z1,x2,z2,y0=0,h=WALL_H,t=TH){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(x2-x1,z2-z1),h,t),wallMaterial);
+  m.position.set((x1+x2)/2,y0+h/2,(z1+z2)/2);m.rotation.y=-Math.atan2(z2-z1,x2-x1);scene.add(m);return solid(m);
  }
- wall(-4,-3,4,-3);wall(-4,-3,-4,3);wall(4,-3,4,3);wall(-4,3,-.7,3);wall(.7,3,4,3);
- const lintel=new THREE.Mesh(new THREE.BoxGeometry(1.4,.5,.15),wallMaterial);lintel.position.set(0,2.55,3);scene.add(lintel);pickables.push(lintel);
- const ceiling=new THREE.Mesh(new THREE.PlaneGeometry(8,6),new THREE.MeshStandardMaterial({color:0xbac1c5,roughness:1,side:THREE.DoubleSide}));ceiling.rotation.x=Math.PI/2;ceiling.position.set(0,2.8,0);scene.add(ceiling);pickables.push(ceiling);
- const roomFloor=new THREE.Mesh(new THREE.PlaneGeometry(8,6),new THREE.MeshStandardMaterial({color:0x967e60,roughness:1}));roomFloor.rotation.x=-Math.PI/2;roomFloor.position.y=.025;scene.add(roomFloor);
- const lamp=new THREE.PointLight(0xffefd5,45,14,2);lamp.position.set(0,2.5,0);scene.add(lamp);
- const lampMesh=new THREE.Mesh(new THREE.SphereGeometry(.12,16,12),new THREE.MeshBasicMaterial({color:0xfff4dc}));lampMesh.position.copy(lamp.position);scene.add(lampMesh);
+ function slab(x1,z1,x2,z2,top=LEVEL,bot=SLAB_BOT){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x2-x1),top-bot,Math.abs(z2-z1)),slabMaterial);
+  m.position.set((x1+x2)/2,(top+bot)/2,(z1+z2)/2);scene.add(m);surface(x1,z1,x2,z2,top);return solid(m);
+ }
+ function rail(x1,z1,x2,z2,y0=LEVEL,h=.95,t=.12){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(x2-x1,z2-z1),h,t),railMaterial);
+  m.position.set((x1+x2)/2,y0+h/2,(z1+z2)/2);m.rotation.y=-Math.atan2(z2-z1,x2-x1);scene.add(m);return solid(m);
+ }
+
+ surface(-30,-30,30,30,0);                     // gras is overal beloopbaar
+
+ // ---------------- begane grond ----------------
+ const roomMat=new THREE.MeshStandardMaterial({color:0x967e60,roughness:1});
+ for(const [x1,z1,x2,z2] of [[XW,ZI,XE,ZS],[XW,ZN,XE,ZI]]){
+  const f=new THREE.Mesh(new THREE.PlaneGeometry(Math.abs(x2-x1),Math.abs(z2-z1)),roomMat);
+  f.rotation.x=-Math.PI/2;f.position.set((x1+x2)/2,.02,(z1+z2)/2);scene.add(f);
+ }
+ wall(XW,ZS,-0.7,ZS); wall(0.7,ZS,XE,ZS);         // zuidmuur met voordeur
+ wall(-0.7,ZS,0.7,ZS,LEVEL-.6,.6);                // latei boven de voordeur
+ wall(XW,ZN,XE,ZN);                               // noordmuur (einde gang)
+ wall(XW,ZS,XW,ZN);                               // westmuur
+ wall(XE,ZS,XE,ZN);                               // oostmuur
+ wall(XW,ZI,-0.8,ZI); wall(0.8,ZI,XE,ZI);         // tussenmuur met doorgang
+
+ // ---------------- trap ----------------
+ // 14 treden, RISE=0.20, RUN=0.28, breed 1.15 m, tegen de westmuur
+ const STEPS=14,RISE=LEVEL/STEPS,RUN=.28,SW=1.15,SX=-3.9,SZ=-4.58;
+ for(let i=0;i<STEPS;i++){
+  const z1=SZ-i*RUN,z2=z1-RUN,top=(i+1)*RISE;
+  const m=new THREE.Mesh(new THREE.BoxGeometry(SW,top,RUN),stairMaterial);
+  m.position.set(SX+SW/2,top/2,(z1+z2)/2);scene.add(m);solid(m);
+  surface(SX,z2,SX+SW,z1,top);
+ }
+ const STAIR_NORTH=SZ-STEPS*RUN;                   // -8.50
+
+ // ---------------- verdieping ----------------
+ // vloerplaten (met gat boven de trap: x -4..-2.75, z -4.58..-8.50)
+ slab(XW,ZI,XE,ZS);                                // boven woonkamer
+ slab(XW,SZ,XE,ZI);                                // boven zuidelijk deel gang
+ slab(-2.75,SZ,XE,STAIR_NORTH);                    // boven gang, oostelijk van de trap
+ slab(XW,STAIR_NORTH,XE,ZN);                       // overloop/landing boven
+ // muren verdieping
+ wall(XW,ZS,XE,ZS,LEVEL,UP_H);
+ wall(XW,ZN,XE,ZN,LEVEL,UP_H);
+ wall(XW,ZS,XW,ZN,LEVEL,UP_H);
+ wall(XE,ZS,XE,ZN,LEVEL,UP_H);
+ wall(XW,ZI,-0.8,ZI,LEVEL,UP_H); wall(0.8,ZI,XE,ZI,LEVEL,UP_H);
+ // leuning rond het trapgat
+ rail(-3.95,SZ,-2.75,SZ,LEVEL,.95,.12);            // zuidrand
+ rail(-2.75,SZ,-2.75,STAIR_NORTH,LEVEL,.95,.12);   // oostrand
+
+ // ---------------- dak & licht ----------------
+ const roof=new THREE.Mesh(new THREE.BoxGeometry(XE-XW+.6,.25,ZS-ZN+.6),new THREE.MeshStandardMaterial({color:0x6b4b3a,roughness:1}));
+ roof.position.set((XW+XE)/2,ROOF+.12,(ZS+ZN)/2);scene.add(roof);pickables.push(roof);
+ for(const [x,y,z,i] of [[0,2.5,0,42],[0,2.5,-6.5,42],[0,5.3,0,48],[0,5.3,-6.5,48]]){
+  const l=new THREE.PointLight(0xffefd5,i,16,2);l.position.set(x,y,z);scene.add(l);
+  const s=new THREE.Mesh(new THREE.SphereGeometry(.1,12,10),new THREE.MeshBasicMaterial({color:0xfff4dc}));
+  s.position.set(x,y,z);scene.add(s);
+ }
+
+ // ---------------- foto's ----------------
  function placeholder(title){
   const c=document.createElement('canvas');c.width=1200;c.height=800;const ctx=c.getContext('2d');ctx.fillStyle='#23364c';ctx.fillRect(0,0,1200,800);ctx.fillStyle='white';ctx.textAlign='center';ctx.font='bold 72px system-ui';ctx.fillText(title,600,375);ctx.font='30px system-ui';ctx.fillText('Foto wordt geladen…',600,440);
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
@@ -66,28 +146,15 @@ try {
   });
   return image;
  }
- // EIGEN AFBEELDINGEN EN ALBUMLINKS:
- picture({
-  title:'Georgië',
-  imageUrl:'./afbeeldingen/georgie.jpg',
-  url:'https://photos.app.goo.gl/VvYa1KCkWFjQkYjx8',
-  x:0,z:-2.89
- });
- picture({
-  title:'Bulgarije',
-  imageUrl:'./afbeeldingen/bulgarije.jpg',
-  url:'https://photos.app.goo.gl/JpmaoD9XZU9JVygc8',
-  x:-3.89,z:0,rotation:Math.PI/2
- });
- picture({
-  title:'Montenegro',
-  imageUrl:'./afbeeldingen/montenegro.jpg',
-  url:'https://photos.app.goo.gl/nwTJQ991okddfWQU7',
-  x:3.89,z:0,rotation:-Math.PI/2
- });
+ // Georgië hangt nu op het einde van de gang (noordmuur), niet meer vóór de deur.
+ picture({title:'Georgië',   imageUrl:'./afbeeldingen/georgie.jpg',   url:'https://photos.app.goo.gl/VvYa1KCkWFjQkYjx8', x:0,     z:ZN+.1, rotation:0});
+ picture({title:'Bulgarije', imageUrl:'./afbeeldingen/bulgarije.jpg', url:'https://photos.app.goo.gl/JpmaoD9XZU9JVygc8', x:XW+.11, z:0,    rotation: Math.PI/2});
+ picture({title:'Montenegro',imageUrl:'./afbeeldingen/montenegro.jpg',url:'https://photos.app.goo.gl/nwTJQ991okddfWQU7', x:XE-.11, z:0,    rotation:-Math.PI/2});
+
+ // ---------------- besturing ----------------
  const keys=new Set(),raycaster=new THREE.Raycaster(),point=new THREE.Vector2();
  const selection=document.querySelector('#selection'),open=document.querySelector('#open'),hint=document.querySelector('#hint'),lockButton=document.querySelector('#lock'),stick=document.querySelector('#stick'),knob=document.querySelector('#knob');
- let yaw=0,pitch=0,selected=null,look=null,joyId=null,joyX=0,joyY=0,previous=performance.now();
+ let yaw=0,pitch=0,selected=null,look=null,joyId=null,joyX=0,joyY=0,feetY=0,previous=performance.now();
  const locked=()=>document.pointerLockElement===canvas;
  function rotate(dx,dy){yaw-=dx*.003;pitch=THREE.MathUtils.clamp(pitch-dy*.003,-1.45,1.45);camera.rotation.set(pitch,yaw,0)}
  function pick(x,y){
@@ -122,8 +189,22 @@ try {
   new THREE.TextureLoader().load(url,t=>{applyTexture(obj,t);URL.revokeObjectURL(url);status.textContent='Foto tijdelijk vervangen: '+obj.userData.title},undefined,()=>{URL.revokeObjectURL(url);status.textContent='Afbeelding kon niet worden geladen.'});e.target.value='';
  });
  window.addEventListener('resize',()=>{resetInput();camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
- function canStand(x,z){const radius=.25;return Math.abs(x)<=24&&Math.abs(z)<=24&&!obstacles.some(b=>x>b.min.x-radius&&x<b.max.x+radius&&z>b.min.z-radius&&z<b.max.z+radius)}
- status.textContent='Loop rechtdoor door de deur. Tik op een foto.';
+
+ // ---------------- lopen & botsen (3D) ----------------
+ function blocked(x,z,feet){
+  const r=.25,lo=feet+STEP_UP,hi=feet+1.75;
+  return obstacles.some(b=>b.max.y>lo&&b.min.y<hi&&x>b.min.x-r&&x<b.max.x+r&&z>b.min.z-r&&z<b.max.z+r);
+ }
+ function surfaceAt(x,z,fromY){
+  let best=-Infinity;
+  for(const s of surfaces){
+   if(x<s.minX||x>s.maxX||z<s.minZ||z>s.maxZ)continue;
+   if(s.y<=fromY+STEP_UP&&s.y>best)best=s.y;
+  }
+  return isFinite(best)?best:fromY;
+ }
+
+ status.textContent='Loop naar binnen, de gang in, en neem de trap naar de verdieping.';
  function animate(now){
   requestAnimationFrame(animate);const dt=Math.min((now-previous)/1000,.05);previous=now;
   let forward=Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'))-joyY;
@@ -132,7 +213,16 @@ try {
   const speed=(keys.has('ShiftLeft')||keys.has('ShiftRight')?8:4)*dt;
   const dx=(-Math.sin(yaw)*forward+Math.cos(yaw)*side)*speed,dz=(-Math.cos(yaw)*forward-Math.sin(yaw)*side)*speed;
   const steps=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.08));
-  for(let i=0;i<steps;i++){if(canStand(camera.position.x+dx/steps,camera.position.z))camera.position.x+=dx/steps;if(canStand(camera.position.x,camera.position.z+dz/steps))camera.position.z+=dz/steps}
+  for(let i=0;i<steps;i++){
+   const nx=camera.position.x+dx/steps,nz=camera.position.z+dz/steps;
+   if(Math.abs(nx)<28&&!blocked(nx,camera.position.z,feetY))camera.position.x=nx;
+   if(Math.abs(nz)<28&&!blocked(camera.position.x,nz,feetY))camera.position.z=nz;
+  }
+  const target=surfaceAt(camera.position.x,camera.position.z,feetY);
+  if(target>feetY)feetY=Math.min(target,feetY+3.5*dt);
+  else feetY=Math.max(target,feetY-9*dt);
+  camera.position.y=feetY+EYE;
+
   const hovered=locked()?pick(0,0):null;
   for(const obj of links)obj.material.emissive.setHex(obj===selected?0x333333:obj===hovered?0x181818:0);
   if(locked())hint.textContent=hovered?'Klik om '+hovered.userData.title+' te selecteren':'Richt op een foto';
