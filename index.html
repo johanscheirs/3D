@@ -31,9 +31,8 @@ try {
  const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,100);camera.position.set(0,1.7,6);camera.rotation.order='YXZ';
  const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(renderer.domElement);const canvas=renderer.domElement;
  scene.add(new THREE.HemisphereLight(0xdcecff,0x454238,1.5));const sun=new THREE.DirectionalLight(0xffffff,1.5);sun.position.set(5,10,4);scene.add(sun);
- const floor=new THREE.Mesh(new THREE.PlaneGeometry(50,50),new THREE.MeshStandardMaterial({color:0x35465a,roughness:1}));floor.rotation.x=-Math.PI/2;scene.add(floor);
- const grid=new THREE.GridHelper(50,50,0x8094aa,0x4d6075);grid.position.y=.01;scene.add(grid);
- const links=[],pickables=[],obstacles=[],loadingErrors=[];
+ const floor=new THREE.Mesh(new THREE.PlaneGeometry(50,50),new THREE.MeshStandardMaterial({color:0x3f7d2e,roughness:1}));floor.rotation.x=-Math.PI/2;scene.add(floor);
+ const grid=new THREE.GridHelper(50,50,0x4f8f3c,0x35682a);grid.position.y=.01;scene.add(grid);const links=[],pickables=[],obstacles=[],loadingErrors=[];
  const wallMaterial=new THREE.MeshStandardMaterial({color:0xd6d8d1,roughness:1});
  // Eén eenheid = één meter. Botsingen gebruiken horizontale/verticale muren.
  function wall(x1,z1,x2,z2,height=2.8,thickness=.15){

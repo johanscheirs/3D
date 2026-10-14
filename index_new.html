@@ -1,0 +1,841 @@
+Dank je. Ik neem deze code als **basis** en laat de bestaande bediening, muren, foto’s en botsingsdetectie intact. Hieronder voeg ik alleen de gras- en tegeltextures toe en vervang ik de twee vloermaterialen. Dit stelt nog niet vast waarom de vorige versie bij jou mislukte; deze versie beperkt de wijzigingen zodat we gerichter kunnen testen.
+
+Vervang de volledige inhoud van `index.html` door:
+
+```html
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Fotogalerij — Georgië, Bulgarije en Montenegro</title>
+<style>
+*{box-sizing:border-box}body{margin:0;overflow:hidden;background:#182335;color:#fff;font:14px system-ui}canvas{display:block;touch-action:none}
+#panel{position:fixed;top:max(12px,env(safe-area-inset-top));left:12px;z-index:5;background:#101827ed;border-radius:12px;padding:12px;width:min(340px,calc(100vw - 24px));line-height:1.5}summary{font-weight:700;cursor:pointer}#status{font-size:12px;color:#b8c8db;margin-top:6px}button,.open{display:inline-block;background:#63ddbd;border:0;border-radius:7px;padding:10px 14px;color:#102524;font:700 14px system-ui;cursor:pointer;text-decoration:none;margin-top:8px}a{color:#63ddbd}input{max-width:100%}#cross{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;font-size:24px}
+#target{position:fixed;bottom:max(14px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#101827ed;border-radius:12px;padding:10px 14px;text-align:center;width:min(330px,calc(100vw - 24px));z-index:4}#open[hidden]{display:none}#hint{font-size:12px;color:#b8c8db;margin-top:5px}
+#stick{position:fixed;left:max(18px,env(safe-area-inset-left));bottom:calc(120px + env(safe-area-inset-bottom));width:126px;height:126px;border-radius:50%;border:2px solid #ffffff77;background:#10182799;touch-action:none;user-select:none;z-index:6}#knob{position:absolute;left:37px;top:37px;width:48px;height:48px;border-radius:50%;background:#63ddbdcc;pointer-events:none}#stick span{position:absolute;top:132px;text-align:center;width:100%;font-size:12px;pointer-events:none}body:not(.touch) #stick{display:none}
+@media(max-height:460px){#panel{max-width:260px;padding:8px}#stick{bottom:34px}#target{left:auto;right:12px;transform:none;width:230px}}
+</style>
+</head>
+<body>
+<div id="panel"><details><summary>Fotogalerij — bediening & afbeeldingen</summary>
+<p>Telefoon: joystick = lopen; over het beeld slepen = rondkijken; kort tikken op een foto = selecteren.</p>
+<p>Computer: WASD / pijltjes = lopen; Shift = sneller; muis slepen = rondkijken. Je kunt ook de muis vastzetten; Esc geeft hem vrij.</p>
+<button id="lock">Muis vastzetten</button> <button id="toggle">Joystick tonen/verbergen</button>
+<p>Selecteer een foto en vervang die tijdelijk door een lokaal bestand:<br><input id="upload" type="file" accept="image/*"><br><small>Er wordt niets geüpload. Herladen herstelt de foto's uit de map afbeeldingen.</small></p>
+<p>Directe albumlinks:<br><a href="https://photos.app.goo.gl/VvYa1KCkWFjQkYjx8" target="_blank" rel="noopener noreferrer">Georgië</a> · <a href="https://photos.app.goo.gl/JpmaoD9XZU9JVygc8" target="_blank" rel="noopener noreferrer">Bulgarije</a> · <a href="https://photos.app.goo.gl/nwTJQ991okddfWQU7" target="_blank" rel="noopener noreferrer">Montenegro</a></p>
+</details><div id="status">3D-bibliotheek laden…</div></div>
+<div id="cross">+</div><div id="stick"><div id="knob"></div><span>Lopen</span></div>
+<div id="target"><div id="selection">Tik of klik op een foto</div><a id="open" class="open" target="_blank" rel="noopener noreferrer" hidden>Open album ↗</a><div id="hint">Slepen = rondkijken</div></div>
+<script type="module">
+const status=document.querySelector('#status');
+document.body.classList.toggle('touch',matchMedia('(pointer: coarse)').matches||navigator.maxTouchPoints>0);
+
+try {
+ const THREE=await import('https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js');
+
+ const scene=new THREE.Scene();
+ scene.background=new THREE.Color(0x182335);
+ scene.fog=new THREE.Fog(0x182335,18,55);
+
+ const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,100);
+ camera.position.set(0,1.7,6);
+ camera.rotation.order='YXZ';
+
+ const renderer=new THREE.WebGLRenderer({antialias:true});
+ renderer.setSize(innerWidth,innerHeight);
+ renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+ document.body.appendChild(renderer.domElement);
+ const canvas=renderer.domElement;
+
+ scene.add(new THREE.HemisphereLight(0xdcecff,0x454238,1.5));
+ const sun=new THREE.DirectionalLight(0xffffff,1.5);
+ sun.position.set(5,10,4);
+ scene.add(sun);
+
+ // ============================================================
+ // NIEUW: GRAS- EN TEGELTEXTURES
+ // Beide textures worden lokaal getekend, zonder extra bestanden.
+ // ============================================================
+
+ function grassTexture(){
+  const c=document.createElement('canvas');
+  c.width=512;
+  c.height=512;
+
+  const ctx=c.getContext('2d');
+  if(!ctx)throw new Error('Geen 2D-canvas beschikbaar voor gras.');
+
+  let seed=1970;
+
+  function random(){
+   seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+   return seed/4294967296;
+  }
+
+  ctx.fillStyle='#496b32';
+  ctx.fillRect(0,0,512,512);
+
+  const groundColors=[
+   '#42602e',
+   '#547839',
+   '#617e40',
+   '#3b572b',
+   '#728647'
+  ];
+
+  for(let i=0;i<12000;i++){
+   ctx.fillStyle=groundColors[
+    Math.floor(random()*groundColors.length)
+   ];
+
+   ctx.fillRect(
+    random()*512,
+    random()*512,
+    1+random()*4,
+    1+random()*4
+   );
+  }
+
+  const grassColors=[
+   '#78934b',
+   '#63873d',
+   '#8ba159',
+   '#365428',
+   '#45682f',
+   '#a0a56a'
+  ];
+
+  ctx.lineWidth=1;
+
+  for(let i=0;i<10000;i++){
+   const x=random()*512;
+   const y=random()*512;
+   const dx=(random()-.5)*5;
+   const dy=-2-random()*7;
+
+   ctx.strokeStyle=grassColors[
+    Math.floor(random()*grassColors.length)
+   ];
+
+   ctx.beginPath();
+   ctx.moveTo(x,y);
+   ctx.lineTo(x+dx,y+dy);
+   ctx.stroke();
+
+   // Laat sprietjes over de bovenrand doorlopen.
+   if(y+dy<0){
+    ctx.beginPath();
+    ctx.moveTo(x,y+512);
+    ctx.lineTo(x+dx,y+dy+512);
+    ctx.stroke();
+   }
+  }
+
+  const texture=new THREE.CanvasTexture(c);
+  texture.colorSpace=THREE.SRGBColorSpace;
+  texture.wrapS=THREE.RepeatWrapping;
+  texture.wrapT=THREE.RepeatWrapping;
+  texture.repeat.set(25,25);
+
+  return texture;
+ }
+
+ function tileTexture(){
+  const c=document.createElement('canvas');
+  c.width=512;
+  c.height=512;
+
+  const ctx=c.getContext('2d');
+  if(!ctx)throw new Error('Geen 2D-canvas beschikbaar voor tegels.');
+
+  // Voegkleur.
+  ctx.fillStyle='#786c58';
+  ctx.fillRect(0,0,512,512);
+
+  const palettes=[
+   ['#e7d6aa','#bb6a31','#73503a','#d4a046'],
+   ['#e1c892','#cd8034','#79523a','#eee0bb'],
+   ['#e7d6ac','#93623b','#c77b35','#d6a64e'],
+   ['#dbc18f','#b95e2c','#694a35','#ead7ac']
+  ];
+
+  for(let row=0;row<2;row++){
+   for(let col=0;col<2;col++){
+    const x=col*256;
+    const y=row*256;
+    const colors=palettes[row*2+col];
+
+    ctx.fillStyle=colors[0];
+    ctx.fillRect(x+3,y+3,250,250);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x+3,y+3,250,250);
+    ctx.clip();
+
+    // Kwartcirkelpatroon in jaren-70-kleuren.
+    const cx=col===row?x:x+256;
+    const cy=row===0?y:y+256;
+
+    const radii=[285,220,155,90];
+    const bands=[
+     colors [aframe](https://aframe.io/docs/1.8.0/components/link.html),
+     colors [doc.babylonjs](https://doc.babylonjs.com/features/featuresDeepDive/babylonViewer/hotspots/),
+     colors [threejs](https://threejs.org/docs/pages/Raycaster.html),
+     colors[0]
+    ];
+
+    for(let i=0;i<radii.length;i++){
+     ctx.fillStyle=bands[i];
+     ctx.beginPath();
+     ctx.arc(cx,cy,radii[i],0,Math.PI*2);
+     ctx.fill();
+    }
+
+    ctx.restore();
+
+    ctx.lineWidth=2;
+    ctx.strokeStyle='#ffffff22';
+    ctx.strokeRect(x+5,y+5,246,246);
+   }
+  }
+
+  const texture=new THREE.CanvasTexture(c);
+  texture.colorSpace=THREE.SRGBColorSpace;
+  texture.wrapS=THREE.RepeatWrapping;
+  texture.wrapT=THREE.RepeatWrapping;
+
+  // 2 x 2 tegels per texture.
+  // Op 8 x 6 meter geeft dit tegels van 50 x 50 cm.
+  texture.repeat.set(8,6);
+
+  return texture;
+ }
+
+ // Buitenvloer: eerst een gewoon groen materiaal.
+ // De texture wordt pas na het opbouwen van de ruimte toegevoegd.
+ const grassMaterial=new THREE.MeshStandardMaterial({
+  color:0x567b38,
+  roughness:1
+ });
+
+ const floor=new THREE.Mesh(
+  new THREE.PlaneGeometry(50,50),
+  grassMaterial
+ );
+
+ floor.rotation.x=-Math.PI/2;
+ scene.add(floor);
+
+ // Het oorspronkelijke raster is verwijderd.
+
+ const links=[],pickables=[],obstacles=[],loadingErrors=[];
+ const wallMaterial=new THREE.MeshStandardMaterial({
+  color:0xd6d8d1,
+  roughness:1
+ });
+
+ // Eén eenheid = één meter. Botsingen gebruiken horizontale/verticale muren.
+ function wall(x1,z1,x2,z2,height=2.8,thickness=.15){
+  const mesh=new THREE.Mesh(
+   new THREE.BoxGeometry(
+    Math.hypot(x2-x1,z2-z1),
+    height,
+    thickness
+   ),
+   wallMaterial
+  );
+
+  mesh.position.set(
+   (x1+x2)/2,
+   height/2,
+   (z1+z2)/2
+  );
+
+  mesh.rotation.y=-Math.atan2(z2-z1,x2-x1);
+  scene.add(mesh);
+  mesh.updateMatrixWorld(true);
+
+  obstacles.push(new THREE.Box3().setFromObject(mesh));
+  pickables.push(mesh);
+  return mesh;
+ }
+
+ wall(-4,-3,4,-3);
+ wall(-4,-3,-4,3);
+ wall(4,-3,4,3);
+ wall(-4,3,-.7,3);
+ wall(.7,3,4,3);
+
+ const lintel=new THREE.Mesh(
+  new THREE.BoxGeometry(1.4,.5,.15),
+  wallMaterial
+ );
+
+ lintel.position.set(0,2.55,3);
+ scene.add(lintel);
+ pickables.push(lintel);
+
+ const ceiling=new THREE.Mesh(
+  new THREE.PlaneGeometry(8,6),
+  new THREE.MeshStandardMaterial({
+   color:0xbac1c5,
+   roughness:1,
+   side:THREE.DoubleSide
+  })
+ );
+
+ ceiling.rotation.x=Math.PI/2;
+ ceiling.position.set(0,2.8,0);
+ scene.add(ceiling);
+ pickables.push(ceiling);
+
+ // Binnenvloer: de tegeltexture wordt later toegevoegd.
+ const tileMaterial=new THREE.MeshStandardMaterial({
+  color:0x967e60,
+  roughness:.6
+ });
+
+ const roomFloor=new THREE.Mesh(
+  new THREE.PlaneGeometry(8,6),
+  tileMaterial
+ );
+
+ roomFloor.rotation.x=-Math.PI/2;
+ roomFloor.position.y=.025;
+ scene.add(roomFloor);
+
+ const lamp=new THREE.PointLight(0xffefd5,45,14,2);
+ lamp.position.set(0,2.5,0);
+ scene.add(lamp);
+
+ const lampMesh=new THREE.Mesh(
+  new THREE.SphereGeometry(.12,16,12),
+  new THREE.MeshBasicMaterial({color:0xfff4dc})
+ );
+
+ lampMesh.position.copy(lamp.position);
+ scene.add(lampMesh);
+
+ function placeholder(title){
+  const c=document.createElement('canvas');
+  c.width=1200;
+  c.height=800;
+
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#23364c';
+  ctx.fillRect(0,0,1200,800);
+  ctx.fillStyle='white';
+  ctx.textAlign='center';
+  ctx.font='bold 72px system-ui';
+  ctx.fillText(title,600,375);
+  ctx.font='30px system-ui';
+  ctx.fillText('Foto wordt geladen…',600,440);
+
+  const t=new THREE.CanvasTexture(c);
+  t.colorSpace=THREE.SRGBColorSpace;
+  return t;
+ }
+
+ function applyTexture(obj,texture){
+  texture.colorSpace=THREE.SRGBColorSpace;
+
+  const old=obj.material.map;
+  obj.material.map=texture;
+  obj.material.needsUpdate=true;
+  old?.dispose();
+
+  const ratio=texture.image.width/texture.image.height;
+  const width=Math.min(2.4,1.6*ratio);
+  const height=width/ratio;
+
+  obj.geometry.dispose();
+  obj.geometry=new THREE.PlaneGeometry(width,height);
+ }
+
+ function picture({title,url,imageUrl,x,z,rotation=0}){
+  const group=new THREE.Group();
+  group.position.set(x,1.65,z);
+  group.rotation.y=rotation;
+  scene.add(group);
+
+  const frame=new THREE.Mesh(
+   new THREE.BoxGeometry(2.52,1.72,.045),
+   new THREE.MeshStandardMaterial({
+    color:0x25262b,
+    roughness:.6
+   })
+  );
+
+  group.add(frame);
+
+  const image=new THREE.Mesh(
+   new THREE.PlaneGeometry(2.4,1.6),
+   new THREE.MeshStandardMaterial({
+    map:placeholder(title),
+    roughness:1
+   })
+  );
+
+  image.position.z=.025;
+  image.userData={title,url};
+
+  group.add(image);
+  links.push(image);
+  pickables.push(image,frame);
+
+  new THREE.TextureLoader().load(
+   imageUrl,
+   t=>applyTexture(image,t),
+   undefined,
+   ()=>{
+    loadingErrors.push(imageUrl);
+    status.textContent='Niet geladen: '+loadingErrors.join(', ');
+    console.error('Afbeelding niet geladen:',imageUrl);
+
+    const t=image.material.map;
+
+    if(t.image && typeof t.image.getContext==='function'){
+     const ctx=t.image.getContext('2d');
+     ctx.fillStyle='#23364c';
+     ctx.fillRect(0,405,1200,90);
+     ctx.fillStyle='#ffb4a4';
+     ctx.textAlign='center';
+     ctx.font='28px system-ui';
+     ctx.fillText(
+      'Foto niet geladen — controleer bestandsnaam en pad',
+      600,
+      450
+     );
+     t.needsUpdate=true;
+    }
+   }
+  );
+
+  return image;
+ }
+
+ // EIGEN AFBEELDINGEN EN ALBUMLINKS:
+ picture({
+  title:'Georgië',
+  imageUrl:'./afbeeldingen/georgie.jpg',
+  url:'https://photos.app.goo.gl/VvYa1KCkWFjQkYjx8',
+  x:0,z:-2.89
+ });
+
+ picture({
+  title:'Bulgarije',
+  imageUrl:'./afbeeldingen/bulgarije.jpg',
+  url:'https://photos.app.goo.gl/JpmaoD9XZU9JVygc8',
+  x:-3.89,z:0,rotation:Math.PI/2
+ });
+
+ picture({
+  title:'Montenegro',
+  imageUrl:'./afbeeldingen/montenegro.jpg',
+  url:'https://photos.app.goo.gl/nwTJQ991okddfWQU7',
+  x:3.89,z:0,rotation:-Math.PI/2
+ });
+
+ const keys=new Set();
+ const raycaster=new THREE.Raycaster();
+ const point=new THREE.Vector2();
+
+ const selection=document.querySelector('#selection');
+ const open=document.querySelector('#open');
+ const hint=document.querySelector('#hint');
+ const lockButton=document.querySelector('#lock');
+ const stick=document.querySelector('#stick');
+ const knob=document.querySelector('#knob');
+
+ let yaw=0;
+ let pitch=0;
+ let selected=null;
+ let look=null;
+ let joyId=null;
+ let joyX=0;
+ let joyY=0;
+ let previous=performance.now();
+
+ const locked=()=>document.pointerLockElement===canvas;
+
+ function rotate(dx,dy){
+  yaw-=dx*.003;
+  pitch=THREE.MathUtils.clamp(pitch-dy*.003,-1.45,1.45);
+  camera.rotation.set(pitch,yaw,0);
+ }
+
+ function pick(x,y){
+  camera.updateMatrixWorld();
+  scene.updateMatrixWorld(true);
+
+  point.set(x,y);
+  raycaster.setFromCamera(point,camera);
+
+  const first=raycaster.intersectObjects(pickables,false)[0]?.object;
+  return first?.userData.url?first:null;
+ }
+
+ function select(obj){
+  selected=obj;
+  selection.textContent=obj?obj.userData.title:'Geen foto geselecteerd';
+  open.hidden=!obj;
+
+  if(obj){
+   open.href=obj.userData.url;
+  }else{
+   open.removeAttribute('href');
+  }
+ }
+
+ lockButton.onclick=async()=>{
+  try{
+   if(!canvas.requestPointerLock){
+    throw new Error(
+     'Muis vastzetten niet beschikbaar; gebruik slepen of de joystick.'
+    );
+   }
+
+   await canvas.requestPointerLock();
+  }catch(e){
+   status.textContent=e.message;
+  }
+ };
+
+ document.addEventListener('pointerlockchange',()=>{
+  keys.clear();
+  look=null;
+
+  hint.textContent=locked()
+   ?'Richt op een foto en klik; de muis wordt vrijgegeven.'
+   :'Slepen = rondkijken';
+ });
+
+ document.addEventListener('mousemove',e=>{
+  if(locked())rotate(e.movementX,e.movementY);
+ });
+
+ canvas.addEventListener('pointerdown',e=>{
+  if(locked()||look||e.button!==0)return;
+
+  look={
+   id:e.pointerId,
+   x:e.clientX,
+   y:e.clientY,
+   startX:e.clientX,
+   startY:e.clientY,
+   moved:false
+  };
+
+  canvas.setPointerCapture(e.pointerId);
+ });
+
+ canvas.addEventListener('pointermove',e=>{
+  if(locked()||!look||e.pointerId!==look.id)return;
+
+  const dx=e.clientX-look.x;
+  const dy=e.clientY-look.y;
+
+  if(
+   Math.hypot(
+    e.clientX-look.startX,
+    e.clientY-look.startY
+   )>8
+  ){
+   look.moved=true;
+  }
+
+  if(look.moved)rotate(dx,dy);
+
+  look.x=e.clientX;
+  look.y=e.clientY;
+ });
+
+ canvas.addEventListener('pointerup',e=>{
+  if(!look||look.id!==e.pointerId)return;
+
+  if(!look.moved){
+   const r=canvas.getBoundingClientRect();
+
+   select(
+    pick(
+     (e.clientX-r.left)/r.width*2-1,
+     1-(e.clientY-r.top)/r.height*2
+    )
+   );
+  }
+
+  look=null;
+ });
+
+ canvas.addEventListener('pointercancel',()=>look=null);
+ canvas.addEventListener('lostpointercapture',()=>look=null);
+
+ canvas.addEventListener('click',()=>{
+  if(locked()){
+   select(pick(0,0));
+   document.exitPointerLock();
+  }
+ });
+
+ const codes=[
+  'KeyW','KeyA','KeyS','KeyD',
+  'ArrowUp','ArrowDown','ArrowLeft','ArrowRight',
+  'ShiftLeft','ShiftRight'
+ ];
+
+ document.addEventListener('keydown',e=>{
+  if(
+   !codes.includes(e.code)||
+   ['INPUT','TEXTAREA','SELECT','BUTTON','A','SUMMARY']
+    .includes(e.target.tagName)
+  ){
+   return;
+  }
+
+  e.preventDefault();
+  keys.add(e.code);
+ });
+
+ document.addEventListener('keyup',e=>keys.delete(e.code));
+
+ function resetJoy(){
+  joyId=null;
+  joyX=joyY=0;
+  knob.style.transform='translate(0px,0px)';
+ }
+
+ function updateJoy(e){
+  const r=stick.getBoundingClientRect();
+  const radius=(r.width-48)/2-4;
+
+  let x=e.clientX-r.left-r.width/2;
+  let y=e.clientY-r.top-r.height/2;
+
+  const len=Math.hypot(x,y);
+
+  if(len>radius){
+   x*=radius/len;
+   y*=radius/len;
+  }
+
+  joyX=x/radius;
+  joyY=y/radius;
+
+  knob.style.transform=`translate(${x}px,${y}px)`;
+ }
+
+ stick.addEventListener('pointerdown',e=>{
+  if(joyId!==null)return;
+
+  e.preventDefault();
+  joyId=e.pointerId;
+  stick.setPointerCapture(e.pointerId);
+  updateJoy(e);
+ });
+
+ stick.addEventListener('pointermove',e=>{
+  if(e.pointerId===joyId)updateJoy(e);
+ });
+
+ for(const name of [
+  'pointerup',
+  'pointercancel',
+  'lostpointercapture'
+ ]){
+  stick.addEventListener(name,e=>{
+   if(e.pointerId===joyId)resetJoy();
+  });
+ }
+
+ document.querySelector('#toggle').onclick=()=>{
+  resetJoy();
+  document.body.classList.toggle('touch');
+ };
+
+ function resetInput(){
+  keys.clear();
+  look=null;
+  resetJoy();
+ }
+
+ window.addEventListener('blur',resetInput);
+
+ document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)resetInput();
+ });
+
+ open.addEventListener('click',resetInput);
+
+ document.querySelector('#upload').addEventListener('change',e=>{
+  const file=e.target.files[0];
+  const obj=selected;
+
+  if(!file)return;
+
+  if(!obj){
+   status.textContent='Selecteer eerst een foto aan de muur.';
+   e.target.value='';
+   return;
+  }
+
+  const url=URL.createObjectURL(file);
+
+  new THREE.TextureLoader().load(
+   url,
+   t=>{
+    applyTexture(obj,t);
+    URL.revokeObjectURL(url);
+    status.textContent='Foto tijdelijk vervangen: '+obj.userData.title;
+   },
+   undefined,
+   ()=>{
+    URL.revokeObjectURL(url);
+    status.textContent='Afbeelding kon niet worden geladen.';
+   }
+  );
+
+  e.target.value='';
+ });
+
+ window.addEventListener('resize',()=>{
+  resetInput();
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+ });
+
+ function canStand(x,z){
+  const radius=.25;
+
+  return Math.abs(x)<=24&&
+   Math.abs(z)<=24&&
+   !obstacles.some(b=>
+    x>b.min.x-radius&&
+    x<b.max.x+radius&&
+    z>b.min.z-radius&&
+    z<b.max.z+radius
+   );
+ }
+
+ // ============================================================
+ // NIEUW: TEXTURES TOEPASSEN
+ // Afzonderlijke foutafhandeling: een texturefout mag het
+ // opbouwen van de ruimte en de bediening niet afbreken.
+ // ============================================================
+
+ const textureErrors=[];
+
+ try{
+  grassMaterial.map=grassTexture();
+  grassMaterial.color.setHex(0xffffff);
+  grassMaterial.needsUpdate=true;
+ }catch(e){
+  textureErrors.push('gras');
+  console.error('Grastexture mislukt:',e);
+ }
+
+ try{
+  tileMaterial.map=tileTexture();
+  tileMaterial.color.setHex(0xffffff);
+  tileMaterial.needsUpdate=true;
+ }catch(e){
+  textureErrors.push('tegels');
+  console.error('Tegeltexture mislukt:',e);
+ }
+
+ status.textContent=textureErrors.length
+  ?'Texturefout: '+textureErrors.join(', ')+'. Zie browserconsole.'
+  :'Gras en tegelvloer — loop rechtdoor door de deur.';
+
+ function animate(now){
+  requestAnimationFrame(animate);
+
+  const dt=Math.min((now-previous)/1000,.05);
+  previous=now;
+
+  let forward=
+   Number(keys.has('KeyW')||keys.has('ArrowUp'))-
+   Number(keys.has('KeyS')||keys.has('ArrowDown'))-
+   joyY;
+
+  let side=
+   Number(keys.has('KeyD')||keys.has('ArrowRight'))-
+   Number(keys.has('KeyA')||keys.has('ArrowLeft'))+
+   joyX;
+
+  const length=Math.max(1,Math.hypot(forward,side));
+  forward/=length;
+  side/=length;
+
+  const speed=(
+   keys.has('ShiftLeft')||keys.has('ShiftRight')?8:4
+  )*dt;
+
+  const dx=(
+   -Math.sin(yaw)*forward+
+   Math.cos(yaw)*side
+  )*speed;
+
+  const dz=(
+   -Math.cos(yaw)*forward-
+   Math.sin(yaw)*side
+  )*speed;
+
+  const steps=Math.max(
+   1,
+   Math.ceil(Math.hypot(dx,dz)/.08)
+  );
+
+  for(let i=0;i<steps;i++){
+   if(
+    canStand(
+     camera.position.x+dx/steps,
+     camera.position.z
+    )
+   ){
+    camera.position.x+=dx/steps;
+   }
+
+   if(
+    canStand(
+     camera.position.x,
+     camera.position.z+dz/steps
+    )
+   ){
+    camera.position.z+=dz/steps;
+   }
+  }
+
+  const hovered=locked()?pick(0,0):null;
+
+  for(const obj of links){
+   obj.material.emissive.setHex(
+    obj===selected
+     ?0x333333
+     :obj===hovered
+      ?0x181818
+      :0
+   );
+  }
+
+  if(locked()){
+   hint.textContent=hovered
+    ?'Klik om '+hovered.userData.title+' te selecteren'
+    :'Richt op een foto';
+  }
+
+  renderer.render(scene,camera);
+ }
+
+ requestAnimationFrame(animate);
+
+}catch(e){
+ status.textContent='Initialisatie mislukt: '+e.message;
+ console.error(e);
+}
+</script>
+</body>
+</html>
+```
