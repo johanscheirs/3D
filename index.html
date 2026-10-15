@@ -25,7 +25,7 @@
 <p>Telefoon: joystick = lopen; over het beeld slepen = rondkijken; kort tikken op een foto = selecteren.</p>
 <p>Computer: WASD / pijltjes = lopen; Shift = sneller; muis slepen = rondkijken. Je kunt ook de muis vastzetten; Esc geeft hem vrij.</p>
 <button id="lock">Muis vastzetten</button> <button id="toggle">Joystick tonen/verbergen</button> <button id="mush">Paddenstoelen opnieuw</button>
-<p>Loop door de voordeur naar binnen, de gang in en neem de trap naar de 2e verdieping. Daar vind je het 3D-model en, via een tweede trap, op de 3e verdieping een Dönerbar.</p>
+<p>Loop door de voordeur naar binnen, de gang in en neem de trap naar de 2e verdieping. Daar vind je het 3D-model en, via een tweede trap aan de oostmuur, op de 3e verdieping een Dönerbar.</p>
 <p>Selecteer een foto en vervang die tijdelijk door een lokaal bestand:<br><input id="upload" type="file" accept="image/*"><br><small>Er wordt niets geüpload. Herladen herstelt de foto's uit de map afbeeldingen.</small></p>
 <p>3D-model op de verdieping:<br><input id="model" type="file" accept=".glb,.gltf,.stl,model/gltf-binary,model/gltf+json,model/stl"><br><button id="resetModel">Standaard step-model</button><br><small>Grootte stel je in met <code>MODEL_TARGET</code>. Plaats met <code>MODEL_X/Y/Z</code>.</small></p>
 <p>Rond het huis staan bij elke herlaadbeurt willekeurige paddenstoelen op het gras.</p>
@@ -100,7 +100,6 @@ try {
   surface(SX,z2,SX+SW,z1,top);
  }
 
- // Verdieping 2 slabs
  slab(XW,ZS,XE,SZ);
  slab(OPEN_EAST,STAIR_NORTH,XE,SZ);
  slab(XW,STAIR_NORTH,SX,SZ);
@@ -126,7 +125,6 @@ try {
  const woodMat=new THREE.MeshStandardMaterial({color:0x8a5a2b,roughness:0.7});
  const neonRedMat=new THREE.MeshBasicMaterial({color:0xff2a2a});
 
- // Verdieping 3 muren (tegel)
  wall(XW,ZS,XE,ZS,LEVEL2,UP_H,TH,tileMat);
  wall(XW,ZN,XE,ZN,LEVEL2,UP_H,TH,tileMat);
  wall(XW,ZS,XW,ZN,LEVEL2,UP_H,TH,tileMat);
@@ -143,12 +141,11 @@ try {
   surface(S2_X,z1,S2_X+S2_W,z2,LEVEL+h);
  }
 
- // Verdieping 3 vloerplaten (met trapgat voor trap 2)
- slab(XW,-4.58,XE,ZS,LEVEL2,LEVEL2-0.14);          // zuidelijk van trapgat
- slab(XW,-8.5,S2_X,-4.58,LEVEL2,LEVEL2-0.14);      // westelijk van trapgat
- slab(XW,ZN,XE,-8.5,LEVEL2,LEVEL2-0.14);           // noordelijk van trapgat
+ // Verdieping 3 vloerplaten
+ slab(XW,-4.58,XE,ZS,LEVEL2,LEVEL2-0.14);
+ slab(XW,-8.5,S2_X,-4.58,LEVEL2,LEVEL2-0.14);
+ slab(XW,ZN,XE,-8.5,LEVEL2,LEVEL2-0.14);
 
- // Donkere tegelvloer visueel
  for(const [x1,z1,x2,z2] of [[XW,-4.58,XE,ZS],[XW,-8.5,S2_X,-4.58],[XW,ZN,XE,-8.5]]){
   const g=new THREE.PlaneGeometry(Math.abs(x2-x1),Math.abs(z2-z1));
   const m=new THREE.Mesh(g,darkFloor);
@@ -167,7 +164,7 @@ try {
  counterTop.position.set((CX1+CX2)/2,LEVEL2+CH+0.03,(CZ1+CZ2)/2);
  scene.add(counterTop);
 
- // Glazen vitrine op de counter
+ // Glazen vitrine
  const caseH=0.55, caseD=0.45, caseW=4.5;
  const glassCase=new THREE.Mesh(new THREE.BoxGeometry(caseW,caseH,caseD),glassMat);
  glassCase.position.set(-0.7,LEVEL2+CH+0.06+caseH/2,CZ1+caseD/2+0.2);
@@ -182,56 +179,51 @@ try {
  regScreen.rotation.x=-Math.PI/4;
  scene.add(regScreen);
 
- // --- Döner-spit achter de counter ---
+ // --- Döner-spit ---
  const spitX=-0.7, spitZ=-9.75, meatH=1.2, meatR=0.35;
  const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,2.4,12),steel);
- pole.position.set(spitX,LEVEL2+1.2,spitZ);
- scene.add(pole);
+ pole.position.set(spitX,LEVEL2+1.2,spitZ); scene.add(pole);
  const meat=new THREE.Mesh(new THREE.CylinderGeometry(0.08,meatR,meatH,20),meatMat);
- meat.position.set(spitX,LEVEL2+0.65,spitZ);
- scene.add(meat);
+ meat.position.set(spitX,LEVEL2+0.65,spitZ); scene.add(meat);
  const meatCap=new THREE.Mesh(new THREE.ConeGeometry(meatR,meatR*1.5,20),meatMat);
- meatCap.position.set(spitX,LEVEL2+0.65+meatH/2+meatR*0.75,spitZ);
- scene.add(meatCap);
+ meatCap.position.set(spitX,LEVEL2+0.65+meatH/2+meatR*0.75,spitZ); scene.add(meatCap);
 
- // Metalen achterwand
  const backPanel=new THREE.Mesh(new THREE.BoxGeometry(1.4,1.8,0.1),new THREE.MeshStandardMaterial({color:0x8c8f92,metalness:0.7,roughness:0.35}));
- backPanel.position.set(spitX,LEVEL2+1.1,spitZ-0.4);
+ backPanel.position.set(spitX,LEVEL2+1.1,ZN+0.08);
  scene.add(backPanel);
 
- // Rode warmtelampen
  for(const dx of [-0.35,0.35]){
   const lamp=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.08,0.15),neonRedMat);
-  lamp.position.set(spitX+dx,LEVEL2+1.9,spitZ+0.05);
+  lamp.position.set(spitX+dx,LEVEL2+2.05,spitZ+0.05);
   scene.add(lamp);
  }
  const spitLight=new THREE.PointLight(0xff3a1a,12,7,2);
  spitLight.position.set(spitX,LEVEL2+1.4,spitZ+0.3);
  scene.add(spitLight);
 
- // --- Menubord op noordmuur ---
+ // --- Menubord op noordmuur (compact, past tussen counter en plafond) ---
  function makeMenuTexture(){
-  const c=document.createElement('canvas');c.width=1024;c.height=680;
+  const c=document.createElement('canvas');c.width=1200;c.height=420;
   const ctx=c.getContext('2d');
   ctx.fillStyle='#131313'; ctx.fillRect(0,0,c.width,c.height);
-  ctx.fillStyle='#c0392b'; ctx.fillRect(0,0,c.width,110);
-  ctx.fillStyle='#f1c40f'; ctx.font='bold 72px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText('DÖNERBURG',c.width/2,55);
-  const items=[['DÖNER','6,50'],['DÜRÜM','7,00'],['ADANA','6,00'],['KETO PIZZA','7,50'],['FRIET','3,50'],['AYRAN','1,50'],['COLA','2,00'],['WATER','1,00']];
-  const colW=c.width/2, rowH=105;
-  ctx.font='bold 46px system-ui';
+  ctx.fillStyle='#c0392b'; ctx.fillRect(0,0,c.width,80);
+  ctx.fillStyle='#f1c40f'; ctx.font='bold 52px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('DÖNERBURG',c.width/2,40);
+  const items=[['DÖNER','6,50'],['DÜRÜM','7,00'],['FALAFEL','6,00'],['PIZZA','7,50'],['POMMES','3,50'],['AYRAN','1,50'],['COLA','2,00'],['WASSER','1,00']];
+  const colW=c.width/2, rowH=72, topY=130;
+  ctx.font='bold 34px system-ui';
   items.forEach((it,i)=>{
-   const col=i%2, row=Math.floor(i/2), bx=col*colW, by=170+row*rowH;
-   ctx.textAlign='left'; ctx.fillStyle='#fff'; ctx.fillText(it[0],bx+40,by);
-   ctx.textAlign='right'; ctx.fillStyle='#f1c40f'; ctx.fillText(it[1]+' €',bx+colW-40,by);
+   const col=i%2, row=Math.floor(i/2), bx=col*colW, by=topY+row*rowH;
+   ctx.textAlign='left'; ctx.fillStyle='#fff'; ctx.fillText(it[0],bx+30,by);
+   ctx.textAlign='right'; ctx.fillStyle='#f1c40f'; ctx.fillText(it[1]+' €',bx+colW-30,by);
   });
   const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
  }
- const menuBoard=new THREE.Mesh(new THREE.PlaneGeometry(5.8,3.85),new THREE.MeshBasicMaterial({map:makeMenuTexture()}));
- menuBoard.position.set(0,LEVEL2+2.05,ZN+0.09);
+ const menuBoard=new THREE.Mesh(new THREE.PlaneGeometry(4.4,1.54),new THREE.MeshBasicMaterial({map:makeMenuTexture()}));
+ menuBoard.position.set(0,LEVEL2+1.98,ZN+0.09);
  scene.add(menuBoard);
 
- // --- Neonreclames ---
+ // --- Neonreclames binnen ---
  function makeNeonTexture(text,color){
   const c=document.createElement('canvas');c.width=1024;c.height=512;
   const ctx=c.getContext('2d');
@@ -248,7 +240,43 @@ try {
   new THREE.MeshBasicMaterial({map:makeNeonTexture('KEBAP','#ffcc22')}));
  neon2.position.set(0,LEVEL2+2.0,ZS-0.09); neon2.rotation.y=Math.PI; scene.add(neon2);
 
- // --- Drankkoelkast in noordwesthoek ---
+ // --- BUITENGEVEL: grote neonreclame boven de voordeur ---
+ // De zuidmuur buitenvlak ligt op z = ZS + TH/2 = 3.08, dus de sign staat op z = 3.09.
+ function makeFacadeNeonTexture(text,color){
+  const c=document.createElement('canvas');c.width=1400;c.height=400;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#0a0a0a'; ctx.fillRect(0,0,c.width,c.height);
+  // donkere rand met rode strip
+  ctx.fillStyle='#c0392b'; ctx.fillRect(0,0,c.width,20); ctx.fillRect(0,c.height-20,c.width,20);
+  // neon gloed
+  ctx.shadowColor=color; ctx.shadowBlur=60;
+  ctx.fillStyle=color; ctx.font='bold 200px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(text,c.width/2,c.height/2);
+  // witte kern voor echt neon-effect
+  ctx.shadowBlur=0; ctx.fillStyle='#fff5f5'; ctx.font='bold 200px system-ui';
+  ctx.globalAlpha=0.35; ctx.fillText(text,c.width/2,c.height/2); ctx.globalAlpha=1;
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
+ }
+ const facadeNeon=new THREE.Mesh(
+  new THREE.PlaneGeometry(5.5,1.57),
+  new THREE.MeshBasicMaterial({map:makeFacadeNeonTexture('DÖNERBURG','#ff2a2a')})
+ );
+ facadeNeon.position.set(0,6.5,ZS+TH/2+0.01);
+ scene.add(facadeNeon);
+ // Rode gloed op de gevel eronder
+ const facadeGlow=new THREE.PointLight(0xff2a1a,14,9,2);
+ facadeGlow.position.set(0,6.0,ZS+0.6);
+ scene.add(facadeGlow);
+
+ // Kleine ophangbord boven de voordeur op de begane grond
+ const doorSign=new THREE.Mesh(
+  new THREE.PlaneGeometry(2.6,0.7),
+  new THREE.MeshBasicMaterial({map:makeFacadeNeonTexture('DÖNER • KEBAP','#ffcc22')})
+ );
+ doorSign.position.set(0,2.35,ZS+TH/2+0.01);
+ scene.add(doorSign);
+
+ // --- Drankkoelkast ---
  const frX=-3.3, frZ=-9.2, frW=0.85, frD=0.75, frH=1.85;
  const fridge=new THREE.Mesh(new THREE.BoxGeometry(frW,frH,frD),steel);
  fridge.position.set(frX,LEVEL2+frH/2,frZ); scene.add(fridge); solid(fridge);
@@ -283,7 +311,7 @@ try {
  makeTable(-2.3,-2.2); makeTable(0.4,-2.2);
  makeTable(-1,1.5);
 
- // Extra verlichting op verdieping 3 (buislampen)
+ // Extra verlichting op verdieping 3
  for(const [x,y,z,i] of [[0,7.8,0,55],[0,7.8,-6,55],[-3,7.8,-3,22],[3,7.8,-1,22]]){
   const l=new THREE.PointLight(0xffe0b8,i,14,2); l.position.set(x,y,z); scene.add(l);
   const s=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.06,1.4),new THREE.MeshBasicMaterial({color:0xfff8e0}));
@@ -409,7 +437,7 @@ try {
   try{const r=await fetch(url,{method:'HEAD'});return {ok:r.ok,status:r.status,statusText:r.statusText};}
   catch(e){return {ok:false,status:0,statusText:e.message||'netwerk geblokkeerd'};}
  }
- function useDefault(reason,cls){fitAndPlace(buildDefaultStep());setStatus((reason?reason+' ':'')+'Standaard step-model op de verdieping.',''||cls);}
+ function useDefault(reason,cls){fitAndPlace(buildDefaultStep());setStatus((reason?reason+' ':'')+'Standaard step-model op de verdieping.',cls||'');}
  async function tryStl(){
   const chk=await checkUrl(AUTO_STL);
   if(!chk.ok){
