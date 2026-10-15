@@ -24,10 +24,11 @@
 <div id="panel"><details open><summary>Fotogalerij — bediening, afbeeldingen & 3D-model</summary>
 <p>Telefoon: joystick = lopen; over het beeld slepen = rondkijken; kort tikken op een foto = selecteren.</p>
 <p>Computer: WASD / pijltjes = lopen; Shift = sneller; muis slepen = rondkijken. Je kunt ook de muis vastzetten; Esc geeft hem vrij.</p>
-<button id="lock">Muis vastzetten</button> <button id="toggle">Joystick tonen/verbergen</button>
+<button id="lock">Muis vastzetten</button> <button id="toggle">Joystick tonen/verbergen</button> <button id="mush">Paddenstoelen opnieuw</button>
 <p>Loop door de voordeur naar binnen, de gang in en neem de trap naar de verdieping. Georgië hangt achteraan de gang; het 3D-model staat boven.</p>
 <p>Selecteer een foto en vervang die tijdelijk door een lokaal bestand:<br><input id="upload" type="file" accept="image/*"><br><small>Er wordt niets geüpload. Herladen herstelt de foto's uit de map afbeeldingen.</small></p>
 <p>3D-model op de verdieping:<br><input id="model" type="file" accept=".glb,.gltf,.stl,model/gltf-binary,model/gltf+json,model/stl"><br><button id="resetModel">Standaard step-model</button><br><small>Grootte stel je in met <code>MODEL_TARGET</code> (in meters, langste zijde). Plaats stel je in met <code>MODEL_X</code>, <code>MODEL_Y</code>, <code>MODEL_Z</code>.</small></p>
+<p>Rond het huis staan bij elke herlaadbeurt willekeurige paddenstoelen op het gras. Klik op <em>Paddenstoelen opnieuw</em> voor een nieuwe set.</p>
 <p>Directe albumlinks:<br><a href="https://photos.app.goo.gl/VvYa1KCkWFjQkYjx8" target="_blank" rel="noopener noreferrer">Georgië</a> · <a href="https://photos.app.goo.gl/JpmaoD9XZU9JVygc8" target="_blank" rel="noopener noreferrer">Bulgarije</a> · <a href="https://photos.app.goo.gl/nwTJQ991okddfWQU7" target="_blank" rel="noopener noreferrer">Montenegro</a></p>
 </details><div id="status">3D-bibliotheek laden…</div></div>
 <div id="cross">+</div><div id="stick"><div id="knob"></div><span>Lopen</span></div>
@@ -119,13 +120,88 @@ try {
   s.position.set(x,y,z);scene.add(s);
  }
 
+ // ---------------- paddenstoelen rond het huis ----------------
+ // Elke herlaadbeurt een verse set. Random positie, grootte, kleur en kanteling.
+ const CAP_COLORS=[
+  0xd94f4f,  // rood
+  0xe8863a,  // oranje
+  0xf2c744,  // geel
+  0x8e5cc7,  // paars
+  0xb15a8a,  // roze-paars
+  0x3fa4a0,  // teal
+  0x6b4a3a,  // bruin
+  0xd9b3b3,  // gebroken wit
+  0x7a3e2f,  // donkerbruin
+  0xe5677c,  // koraal
+  0x4d7fc7,  // blauw
+  0xa8c94f,  // olijfgroen
+ ];
+
+ function makeMushroom(){
+  const g=new THREE.Group();
+  // Steel: crème, iets taps toelopend naar boven
+  const stemH=0.35+Math.random()*0.75;             // 35 cm tot 1,10 m
+  const stemR=0.05+Math.random()*0.05;
+  const stemMat=new THREE.MeshStandardMaterial({color:0xf0e6d2,roughness:.9});
+  const stem=new THREE.Mesh(new THREE.CylinderGeometry(stemR*0.8,stemR,stemH,10),stemMat);
+  stem.position.y=stemH/2;
+  g.add(stem);
+  // Hoed: halve bol, willekeurig breed en plat/bol
+  const capR=0.20+Math.random()*0.32;
+  const capH=capR*(0.5+Math.random()*0.4);
+  const capColor=CAP_COLORS[(Math.random()*CAP_COLORS.length)|0];
+  const capMat=new THREE.MeshStandardMaterial({color:capColor,roughness:.75});
+  const cap=new THREE.Mesh(new THREE.SphereGeometry(capR,16,12,0,Math.PI*2,0,Math.PI/2),capMat);
+  cap.scale.y=capH/capR;
+  cap.position.y=stemH*0.96;
+  g.add(cap);
+  // Rotatie + lichte kanteling voor natuurlijke variatie
+  g.rotation.y=Math.random()*Math.PI*2;
+  g.rotation.x=(Math.random()-0.5)*0.18;
+  g.rotation.z=(Math.random()-0.5)*0.18;
+  return g;
+ }
+
+ // Ligt (x,z) binnen of pal tegen het huis?
+ function insideHouse(x,z,pad){
+  return x>XW-pad && x<XE+pad && z>ZN-pad && z<ZS+pad;
+ }
+
+ let mushroomGroup=null;
+ function spawnMushrooms(n){
+  if(mushroomGroup){scene.remove(mushroomGroup);mushroomGroup=null;}
+  mushroomGroup=new THREE.Group();
+  const placed=[];
+  // Zoekzone: huis + ruime marge (x -12..12, z -18..10)
+  const XMIN=-12, XMAX=12, ZMIN=-18, ZMAX=10;
+  let tries=0, maxTries=n*40;
+  while(placed.length<n && tries<maxTries){
+   tries++;
+   const x=XMIN+Math.random()*(XMAX-XMIN);
+   const z=ZMIN+Math.random()*(ZMAX-ZMIN);
+   if(insideHouse(x,z,0.5)) continue;             // niet in of tegen het huis
+   let tooClose=false;
+   for(const p of placed){ if(Math.hypot(p.x-x,p.z-z)<0.8){tooClose=true;break;} }
+   if(tooClose) continue;
+   const m=makeMushroom();
+   m.position.set(x,0,z);
+   mushroomGroup.add(m);
+   placed.push({x,z});
+  }
+  scene.add(mushroomGroup);
+  console.log('[3D] '+placed.length+' paddenstoelen geplaatst');
+ }
+
+ spawnMushrooms(60);
+ document.querySelector('#mush').onclick=()=>{spawnMushrooms(60);setStatus('Paddenstoelen opnieuw geplaatst.','ok');};
+
  // ---------------- 3D-model op de verdieping ----------------
  // Coördinaten op de verdieping:
  //   x: -4 (west) .. +4 (oost)
  //   z: +3 (voorkant/voordeur) .. -3 (achterkant/binnendeur naar de gang)
  //   "naar voor" = richting van de voordeur = z groter
  //   "naar achter" = richting van de gang = z kleiner
- const MODEL_X=0, MODEL_Z=-0.5;
+ const MODEL_X=0, MODEL_Z=0.5;
  const MODEL_Y=LEVEL+0.02;               // op de verdiepingsvloer
  const MODEL_TARGET=2.0;                 // langste zijde in meters
  const AUTO_GLB='./model.glb';
