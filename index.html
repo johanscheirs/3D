@@ -45,7 +45,16 @@ try {
  const scene=new THREE.Scene();scene.background=new THREE.Color(0x182335);scene.fog=new THREE.Fog(0x182335,25,75);
  const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,140);camera.position.set(0,1.7,8);camera.rotation.order='YXZ';
  const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(renderer.domElement);const canvas=renderer.domElement;
- scene.add(new THREE.HemisphereLight(0xdcecff,0x454238,1.5));const sun=new THREE.DirectionalLight(0xffffff,1.4);sun.position.set(6,14,5);scene.add(sun);
+
+ // ---------------- verlichting: vier knoppen ----------------
+ // Pas deze getallen aan om de hele scène helderder of donkerder te maken.
+ const LIGHT_AMBIENT=0.35;    // hemelvulling (was 1.5) — zachte basisglans op alles
+ const LIGHT_SUN=0.55;        // zonlicht (was 1.4) — de richting van het buitenlicht
+ const LIGHT_INDOOR=0.35;     // schaalfactor voor alle plafondlampen (was 42..55 per stuk)
+ const LIGHT_ACCENT=0.6;      // schaalfactor voor accenten (döner-spit, gevelgloed)
+
+ scene.add(new THREE.HemisphereLight(0xdcecff,0x454238,LIGHT_AMBIENT));
+ const sun=new THREE.DirectionalLight(0xffffff,LIGHT_SUN);sun.position.set(6,14,5);scene.add(sun);
 
  const ground=new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.MeshStandardMaterial({color:0x3f7d2e,roughness:1}));
  ground.rotation.x=-Math.PI/2;scene.add(ground);
@@ -130,7 +139,6 @@ try {
  wall(XW,ZS,XW,ZN,LEVEL2,UP_H,TH,tileMat);
  wall(XE,ZS,XE,ZN,LEVEL2,UP_H,TH,tileMat);
 
- // Tweede trap: van verdieping 2 (noordzijde) omhoog naar verdieping 3, richting zuid
  const S2_W=1.1, S2_X=XE-S2_W, S2_ZB=-8.5, S2_ZT=-4.58;
  const S2_STEPS=14, S2_RISE=LEVEL/S2_STEPS, S2_RUN=(S2_ZT-S2_ZB)/S2_STEPS;
  for(let i=0;i<S2_STEPS;i++){
@@ -141,7 +149,6 @@ try {
   surface(S2_X,z1,S2_X+S2_W,z2,LEVEL+h);
  }
 
- // Verdieping 3 vloerplaten
  slab(XW,-4.58,XE,ZS,LEVEL2,LEVEL2-0.14);
  slab(XW,-8.5,S2_X,-4.58,LEVEL2,LEVEL2-0.14);
  slab(XW,ZN,XE,-8.5,LEVEL2,LEVEL2-0.14);
@@ -154,7 +161,6 @@ try {
   scene.add(m);
  }
 
- // --- Counter ---
  const CX1=-3.2, CX2=3.2, CZ1=-9.5, CZ2=-8.6, CH=1.1;
  const counterBody=new THREE.Mesh(new THREE.BoxGeometry(CX2-CX1,CH,CZ2-CZ1),counterBodyMat);
  counterBody.position.set((CX1+CX2)/2,LEVEL2+CH/2,(CZ1+CZ2)/2);
@@ -164,13 +170,11 @@ try {
  counterTop.position.set((CX1+CX2)/2,LEVEL2+CH+0.03,(CZ1+CZ2)/2);
  scene.add(counterTop);
 
- // Glazen vitrine
  const caseH=0.55, caseD=0.45, caseW=4.5;
  const glassCase=new THREE.Mesh(new THREE.BoxGeometry(caseW,caseH,caseD),glassMat);
  glassCase.position.set(-0.7,LEVEL2+CH+0.06+caseH/2,CZ1+caseD/2+0.2);
  scene.add(glassCase);
 
- // Kassa
  const reg=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.35,0.35),new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.4,metalness:0.3}));
  reg.position.set(2.3,LEVEL2+CH+0.06+0.175,CZ2-0.4);
  scene.add(reg);
@@ -179,7 +183,6 @@ try {
  regScreen.rotation.x=-Math.PI/4;
  scene.add(regScreen);
 
- // --- Döner-spit ---
  const spitX=-0.7, spitZ=-9.75, meatH=1.2, meatR=0.35;
  const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,2.4,12),steel);
  pole.position.set(spitX,LEVEL2+1.2,spitZ); scene.add(pole);
@@ -197,18 +200,17 @@ try {
   lamp.position.set(spitX+dx,LEVEL2+2.05,spitZ+0.05);
   scene.add(lamp);
  }
- const spitLight=new THREE.PointLight(0xff3a1a,12,7,2);
+ const spitLight=new THREE.PointLight(0xff3a1a,12*LIGHT_ACCENT,7,2);
  spitLight.position.set(spitX,LEVEL2+1.4,spitZ+0.3);
  scene.add(spitLight);
 
- // --- Menubord op noordmuur (compact, past tussen counter en plafond) ---
  function makeMenuTexture(){
   const c=document.createElement('canvas');c.width=1200;c.height=420;
   const ctx=c.getContext('2d');
   ctx.fillStyle='#131313'; ctx.fillRect(0,0,c.width,c.height);
   ctx.fillStyle='#c0392b'; ctx.fillRect(0,0,c.width,80);
   ctx.fillStyle='#f1c40f'; ctx.font='bold 52px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText('VELES KEBAB',c.width/2,40);
+  ctx.fillText('DÖNERBURG',c.width/2,40);
   const items=[['DÖNER','6,50'],['DÜRÜM','7,00'],['FALAFEL','6,00'],['PIZZA','7,50'],['POMMES','3,50'],['AYRAN','1,50'],['COLA','2,00'],['WASSER','1,00']];
   const colW=c.width/2, rowH=72, topY=130;
   ctx.font='bold 34px system-ui';
@@ -223,7 +225,6 @@ try {
  menuBoard.position.set(0,LEVEL2+1.98,ZN+0.09);
  scene.add(menuBoard);
 
- // --- Neonreclames binnen ---
  function makeNeonTexture(text,color){
   const c=document.createElement('canvas');c.width=1024;c.height=512;
   const ctx=c.getContext('2d');
@@ -237,57 +238,46 @@ try {
   new THREE.MeshBasicMaterial({map:makeNeonTexture('DÖNER','#ff2a2a')}));
  neon1.position.set(XW+0.09,LEVEL2+2.0,-2); neon1.rotation.y=Math.PI/2; scene.add(neon1);
  const neon2=new THREE.Mesh(new THREE.PlaneGeometry(3.5,1.75),
-  new THREE.MeshBasicMaterial({map:makeNeonTexture('KEBAB','#ffcc22')}));
+  new THREE.MeshBasicMaterial({map:makeNeonTexture('KEBAP','#ffcc22')}));
  neon2.position.set(0,LEVEL2+2.0,ZS-0.09); neon2.rotation.y=Math.PI; scene.add(neon2);
 
- // --- BUITENGEVEL: grote neonreclame boven de voordeur ---
- // De zuidmuur buitenvlak ligt op z = ZS + TH/2 = 3.08, dus de sign staat op z = 3.09.
+ // Buitengevel-neon met automatisch passende fontgrootte
  function makeFacadeNeonTexture(text,color,maxFontSize=200){
   const c=document.createElement('canvas');c.width=1400;c.height=400;
   const ctx=c.getContext('2d');
   ctx.fillStyle='#0a0a0a'; ctx.fillRect(0,0,c.width,c.height);
   ctx.fillStyle='#c0392b'; ctx.fillRect(0,0,c.width,20); ctx.fillRect(0,c.height-20,c.width,20);
-
-  // Automatisch passend maken: begin bij maxFontSize en krimp tot de tekst
-  // binnen 88% van de canvasbreedte past.
   let fs=maxFontSize;
   const maxWidth=c.width*0.88;
   ctx.font='bold '+fs+'px system-ui';
   const w=ctx.measureText(text).width;
   if(w>maxWidth) fs=Math.floor(fs*maxWidth/w);
-
   ctx.shadowColor=color; ctx.shadowBlur=fs*0.3;
   ctx.fillStyle=color; ctx.font='bold '+fs+'px system-ui';
   ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText(text,c.width/2,c.height/2);
-
   ctx.shadowBlur=0; ctx.fillStyle='#fff5f5';
   ctx.font='bold '+fs+'px system-ui';
   ctx.globalAlpha=0.35; ctx.fillText(text,c.width/2,c.height/2); ctx.globalAlpha=1;
-
   const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
  }
- 
  const facadeNeon=new THREE.Mesh(
   new THREE.PlaneGeometry(5.5,1.57),
-  new THREE.MeshBasicMaterial({map:makeFacadeNeonTexture('VELES KEBAB','#ff2a2a')})
+  new THREE.MeshBasicMaterial({map:makeFacadeNeonTexture('DÖNERBURG','#ff2a2a')})
  );
  facadeNeon.position.set(0,6.5,ZS+TH/2+0.01);
  scene.add(facadeNeon);
- // Rode gloed op de gevel eronder
- const facadeGlow=new THREE.PointLight(0xff2a1a,14,9,2);
+ const facadeGlow=new THREE.PointLight(0xff2a1a,14*LIGHT_ACCENT,9,2);
  facadeGlow.position.set(0,6.0,ZS+0.6);
  scene.add(facadeGlow);
 
- // Kleine ophangbord boven de voordeur op de begane grond
-	const doorSign=new THREE.Mesh(
-	 new THREE.PlaneGeometry(2.6,0.7),
-	 new THREE.MeshBasicMaterial({map:makeFacadeNeonTexture('DÖNER • KEBAB','#ffcc22',110)})
-	);
+ const doorSign=new THREE.Mesh(
+  new THREE.PlaneGeometry(2.6,0.7),
+  new THREE.MeshBasicMaterial({map:makeFacadeNeonTexture('DÖNER • KEBAP','#ffcc22',110)})
+ );
  doorSign.position.set(0,2.35,ZS+TH/2+0.01);
  scene.add(doorSign);
 
- // --- Drankkoelkast ---
  const frX=-3.3, frZ=-9.2, frW=0.85, frD=0.75, frH=1.85;
  const fridge=new THREE.Mesh(new THREE.BoxGeometry(frW,frH,frD),steel);
  fridge.position.set(frX,LEVEL2+frH/2,frZ); scene.add(fridge); solid(fridge);
@@ -302,7 +292,6 @@ try {
   scene.add(b);
  }
 
- // --- Tafels met krukjes ---
  function makeTable(x,z){
   const topW=0.7, legH=0.75;
   const top=new THREE.Mesh(new THREE.BoxGeometry(topW,0.05,topW),woodMat);
@@ -322,18 +311,18 @@ try {
  makeTable(-2.3,-2.2); makeTable(0.4,-2.2);
  makeTable(-1,1.5);
 
- // Extra verlichting op verdieping 3
+ // Plafondlampen Dönerbar — geschaald met LIGHT_INDOOR
  for(const [x,y,z,i] of [[0,7.8,0,55],[0,7.8,-6,55],[-3,7.8,-3,22],[3,7.8,-1,22]]){
-  const l=new THREE.PointLight(0xffe0b8,i,14,2); l.position.set(x,y,z); scene.add(l);
+  const l=new THREE.PointLight(0xffe0b8,i*LIGHT_INDOOR,14,2); l.position.set(x,y,z); scene.add(l);
   const s=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.06,1.4),new THREE.MeshBasicMaterial({color:0xfff8e0}));
   s.position.set(x,y+0.08,z); scene.add(s);
  }
 
- // --- dak & basisverlichting ---
+ // --- dak & basisverlichting (geschaald met LIGHT_INDOOR) ---
  const roof=new THREE.Mesh(new THREE.BoxGeometry(XE-XW+.6,.25,ZS-ZN+.6),new THREE.MeshStandardMaterial({color:0x6b4b3a,roughness:1}));
  roof.position.set((XW+XE)/2,ROOF+.12,(ZS+ZN)/2);scene.add(roof);pickables.push(roof);
  for(const [x,y,z,i] of [[0,2.5,0,42],[0,2.5,-6.5,42],[0,5.3,0,48],[0,5.3,-6.5,48]]){
-  const l=new THREE.PointLight(0xffefd5,i,16,2);l.position.set(x,y,z);scene.add(l);
+  const l=new THREE.PointLight(0xffefd5,i*LIGHT_INDOOR,16,2);l.position.set(x,y,z);scene.add(l);
   const s=new THREE.Mesh(new THREE.SphereGeometry(.1,12,10),new THREE.MeshBasicMaterial({color:0xfff4dc}));
   s.position.set(x,y,z);scene.add(s);
  }
