@@ -238,7 +238,7 @@ try {
   new THREE.MeshBasicMaterial({map:makeNeonTexture('DÖNER','#ff2a2a')}));
  neon1.position.set(XW+0.09,LEVEL2+2.0,-2); neon1.rotation.y=Math.PI/2; scene.add(neon1);
  const neon2=new THREE.Mesh(new THREE.PlaneGeometry(3.5,1.75),
-  new THREE.MeshBasicMaterial({map:makeNeonTexture('KEBAP','#ffcc22')}));
+  new THREE.MeshBasicMaterial({map:makeNeonTexture('KEBAB','#ffcc22')}));
  neon2.position.set(0,LEVEL2+2.0,ZS-0.09); neon2.rotation.y=Math.PI; scene.add(neon2);
 
  // Buitengevel-neon met automatisch passende fontgrootte
@@ -273,7 +273,7 @@ try {
 
  const doorSign=new THREE.Mesh(
   new THREE.PlaneGeometry(2.6,0.7),
-  new THREE.MeshBasicMaterial({map:makeFacadeNeonTexture('DÖNER • KEBAP','#ffcc22',110)})
+  new THREE.MeshBasicMaterial({map:makeFacadeNeonTexture('DÖNER • KEBAB','#ffcc22',110)})
  );
  doorSign.position.set(0,2.35,ZS+TH/2+0.01);
  scene.add(doorSign);
