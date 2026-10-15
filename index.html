@@ -25,9 +25,9 @@
 <p>Telefoon: joystick = lopen; over het beeld slepen = rondkijken; kort tikken op een foto = selecteren.</p>
 <p>Computer: WASD / pijltjes = lopen; Shift = sneller; muis slepen = rondkijken. Je kunt ook de muis vastzetten; Esc geeft hem vrij.</p>
 <button id="lock">Muis vastzetten</button> <button id="toggle">Joystick tonen/verbergen</button>
-<p>Loop door de voordeur naar binnen, de gang in en neem de trap naar de verdieping. Georgië hangt achteraan de gang.</p>
+<p>Loop door de voordeur naar binnen, de gang in en neem de trap naar de verdieping. Georgië hangt achteraan de gang; het 3D-model staat boven.</p>
 <p>Selecteer een foto en vervang die tijdelijk door een lokaal bestand:<br><input id="upload" type="file" accept="image/*"><br><small>Er wordt niets geüpload. Herladen herstelt de foto's uit de map afbeeldingen.</small></p>
-<p>3D-model midden in de woonkamer:<br><input id="model" type="file" accept=".glb,.gltf,.stl,model/gltf-binary,model/gltf+json,model/stl"><br><button id="resetModel">Standaard step-model</button><br><small>Grootte stel je in met <code>MODEL_TARGET</code> (in meters, langste zijde). Geldt zowel voor je eigen GLB/STL als voor het standaard step-model.</small></p>
+<p>3D-model op de verdieping:<br><input id="model" type="file" accept=".glb,.gltf,.stl,model/gltf-binary,model/gltf+json,model/stl"><br><button id="resetModel">Standaard step-model</button><br><small>Grootte stel je in met <code>MODEL_TARGET</code> (in meters, langste zijde). Plaats stel je in met <code>MODEL_X</code>, <code>MODEL_Y</code>, <code>MODEL_Z</code>.</small></p>
 <p>Directe albumlinks:<br><a href="https://photos.app.goo.gl/VvYa1KCkWFjQkYjx8" target="_blank" rel="noopener noreferrer">Georgië</a> · <a href="https://photos.app.goo.gl/JpmaoD9XZU9JVygc8" target="_blank" rel="noopener noreferrer">Bulgarije</a> · <a href="https://photos.app.goo.gl/nwTJQ991okddfWQU7" target="_blank" rel="noopener noreferrer">Montenegro</a></p>
 </details><div id="status">3D-bibliotheek laden…</div></div>
 <div id="cross">+</div><div id="stick"><div id="knob"></div><span>Lopen</span></div>
@@ -119,9 +119,12 @@ try {
   s.position.set(x,y,z);scene.add(s);
  }
 
- // ---------------- 3D-model midden in de woonkamer ----------------
- const MODEL_X=0, MODEL_Z=0;
- const MODEL_TARGET=2.0;              // <-- langste zijde in meters (geldt voor élk model)
+ // ---------------- 3D-model op de verdieping ----------------
+ // Plaats op de verdieping: x,z binnen de bovenkamer (x -4..4, z -3..3),
+ // en y = LEVEL + een kleine offset (vloer van de verdieping ligt op y=LEVEL=2.8).
+ const MODEL_X=0, MODEL_Z=1.5;
+ const MODEL_Y=LEVEL+0.02;              // <<-- op de verdieping, net boven de vloer
+ const MODEL_TARGET=2.0;                // langste zijde in meters
  const AUTO_GLB='./model.glb';
  const AUTO_STL='./model.stl';
  const STL_ROT={x:0, y:0, z:0};
@@ -136,8 +139,7 @@ try {
  const stlLoader=new STLLoader();
 
  const isFileProtocol=location.protocol==='file:';
- console.log('[3D] MODEL_TARGET =', MODEL_TARGET, 'm');
- console.log('[3D] Protocol:', location.protocol);
+ console.log('[3D] MODEL_TARGET =', MODEL_TARGET, 'm | positie y =', MODEL_Y);
 
  function buildDefaultStep(){
   const g=new THREE.Group();
@@ -165,7 +167,7 @@ try {
    modelPickables=[];
   }
   modelRoot=root;
-  root.position.set(MODEL_X,0.02,MODEL_Z);
+  root.position.set(MODEL_X,MODEL_Y,MODEL_Z);
   scene.add(root);
   root.updateMatrixWorld(true);
   modelBox=new THREE.Box3().setFromObject(root);
@@ -173,7 +175,6 @@ try {
   root.traverse(o=>{if(o.isMesh){pickables.push(o);modelPickables.push(o);}});
  }
 
- // Schaalt en plaatst object: langste zijde = MODEL_TARGET, onderkant op vloer, gecentreerd op MODEL_X/Z.
  function fitAndPlace(obj){
   obj.updateMatrixWorld(true);
   let b=new THREE.Box3().setFromObject(obj);
@@ -189,7 +190,7 @@ try {
   const wrap=new THREE.Group();wrap.add(obj);
   placeModel(wrap);
   const sz=new THREE.Vector3();new THREE.Box3().setFromObject(wrap).getSize(sz);
-  setStatus('Model geplaatst — langste zijde '+sz.x.toFixed(2)+' × '+sz.y.toFixed(2)+' × '+sz.z.toFixed(2)+' m','ok');
+  setStatus('Model op de verdieping — '+sz.x.toFixed(2)+' × '+sz.y.toFixed(2)+' × '+sz.z.toFixed(2)+' m','ok');
  }
 
  function makeStlWrap(geom){
@@ -210,20 +211,18 @@ try {
   }
  }
 
- // Standaard-trapje wordt nu óók door fitAndPlace gehaald, dus MODEL_TARGET geldt ook hier.
  function useDefault(reason,cls){
   fitAndPlace(buildDefaultStep());
-  setStatus((reason?reason+' ':'')+'Standaard step-model, langste zijde '+MODEL_TARGET+' m.', cls||'');
+  setStatus((reason?reason+' ':'')+'Standaard step-model op de verdieping, langste zijde '+MODEL_TARGET+' m.', cls||'');
  }
 
  async function tryStl(){
   const chk=await checkUrl(AUTO_STL);
-  console.log('[3D] STL HEAD-check:', chk);
   if(!chk.ok){
    const hint=isFileProtocol
     ? 'Je opent via file://. Open de pagina via een webserver (bijv. `python3 -m http.server 8000`) en herlaad.'
     : 'Controleer of `model.stl` exact zo heet en in dezelfde map staat als de HTML.';
-   useDefault('Geen model.glb of model.stl geladen.'+hint,'err');
+   useDefault('Geen model.glb of model.stl geladen. '+hint,'err');
    return;
   }
   stlLoader.load(AUTO_STL,
@@ -239,7 +238,6 @@ try {
    return;
   }
   const chk=await checkUrl(AUTO_GLB);
-  console.log('[3D] GLB HEAD-check:', chk);
   if(!chk.ok){
    setStatus('model.glb niet gevonden (HTTP '+chk.status+'). Ik probeer model.stl…');
    tryStl();
@@ -264,7 +262,7 @@ try {
 
  document.querySelector('#resetModel').onclick=()=>{
   fitAndPlace(buildDefaultStep());
-  setStatus('Standaard step-model geplaatst, langste zijde '+MODEL_TARGET+' m.','ok');
+  setStatus('Standaard step-model op de verdieping, langste zijde '+MODEL_TARGET+' m.','ok');
  };
 
  document.querySelector('#model').addEventListener('change',e=>{
