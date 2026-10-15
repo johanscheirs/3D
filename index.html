@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Fotogalerij — Georgië, Bulgarije en Montenegro</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+  }
+}
+</script>
 <style>
 *{box-sizing:border-box}body{margin:0;overflow:hidden;background:#182335;color:#fff;font:14px system-ui}canvas{display:block;touch-action:none}
 #panel{position:fixed;top:max(12px,env(safe-area-inset-top));left:12px;z-index:5;background:#101827ed;border-radius:12px;padding:12px;width:min(340px,calc(100vw - 24px));line-height:1.5}summary{font-weight:700;cursor:pointer}#status{font-size:12px;color:#b8c8db;margin-top:6px}button,.open{display:inline-block;background:#63ddbd;border:0;border-radius:7px;padding:10px 14px;color:#102524;font:700 14px system-ui;cursor:pointer;text-decoration:none;margin-top:8px}a{color:#63ddbd}input{max-width:100%}#cross{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;font-size:24px}
@@ -13,12 +21,13 @@
 </style>
 </head>
 <body>
-<div id="panel"><details><summary>Fotogalerij — bediening & afbeeldingen</summary>
+<div id="panel"><details open><summary>Fotogalerij — bediening, afbeeldingen & 3D-model</summary>
 <p>Telefoon: joystick = lopen; over het beeld slepen = rondkijken; kort tikken op een foto = selecteren.</p>
 <p>Computer: WASD / pijltjes = lopen; Shift = sneller; muis slepen = rondkijken. Je kunt ook de muis vastzetten; Esc geeft hem vrij.</p>
 <button id="lock">Muis vastzetten</button> <button id="toggle">Joystick tonen/verbergen</button>
-<p>Loop door de voordeur naar binnen, ga de gang in en neem de trap naar de verdieping. Georgië hangt achteraan de gang.</p>
+<p>Loop door de voordeur naar binnen, de gang in en neem de trap naar de verdieping. Georgië hangt achteraan de gang.</p>
 <p>Selecteer een foto en vervang die tijdelijk door een lokaal bestand:<br><input id="upload" type="file" accept="image/*"><br><small>Er wordt niets geüpload. Herladen herstelt de foto's uit de map afbeeldingen.</small></p>
+<p>3D-model op het gras, links van het huis:<br><input id="model" type="file" accept=".glb,.gltf,.stl,model/gltf-binary,model/gltf+json,model/stl"><br><button id="resetModel">Standaard step-model</button><br><small>Zet je GLB uit Fusion naast deze HTML onder de naam <code>model.glb</code> — die wordt bij het openen automatisch geladen. Valt terug op <code>model.stl</code> en anders op het standaard step-model.</small></p>
 <p>Directe albumlinks:<br><a href="https://photos.app.goo.gl/VvYa1KCkWFjQkYjx8" target="_blank" rel="noopener noreferrer">Georgië</a> · <a href="https://photos.app.goo.gl/JpmaoD9XZU9JVygc8" target="_blank" rel="noopener noreferrer">Bulgarije</a> · <a href="https://photos.app.goo.gl/nwTJQ991okddfWQU7" target="_blank" rel="noopener noreferrer">Montenegro</a></p>
 </details><div id="status">3D-bibliotheek laden…</div></div>
 <div id="cross">+</div><div id="stick"><div id="knob"></div><span>Lopen</span></div>
@@ -27,7 +36,10 @@
 const status=document.querySelector('#status');
 document.body.classList.toggle('touch',matchMedia('(pointer: coarse)').matches||navigator.maxTouchPoints>0);
 try {
- const THREE=await import('https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js');
+ const THREE=await import('three');
+ const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+ const {DRACOLoader}=await import('three/addons/loaders/DRACOLoader.js');
+ const {STLLoader}=await import('three/addons/loaders/STLLoader.js');
  const scene=new THREE.Scene();scene.background=new THREE.Color(0x182335);scene.fog=new THREE.Fog(0x182335,25,75);
  const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,140);camera.position.set(0,1.7,8);camera.rotation.order='YXZ';
  const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(renderer.domElement);const canvas=renderer.domElement;
@@ -39,25 +51,11 @@ try {
  const grid=new THREE.GridHelper(60,60,0x4f8f3c,0x35682a);grid.position.y=.01;scene.add(grid);
 
  // ---------------- maten ----------------
- const LEVEL=2.8;                 // vloerpeil verdieping
- const WALL_H=LEVEL;              // muurhoogte begane grond
- const UP_H=2.8;                  // muurhoogte verdieping
- const ROOF=LEVEL+UP_H;           // 5,6
- const SLAB_BOT=LEVEL-.14;        // onderkant vloerplaat
- const TH=.16;                    // muurdikte
- const STEP_UP=.34;               // maximale opstaphoogte
- const EYE=1.7;                   // ooghoogte
-
- // huisgrenzen
- const XW=-4, XE=4;               // west / oost
- const ZS=3, ZN=-10;              // zuid (voordeur) / noord (gang-einde)
- const ZI=-3;                     // tussenmuur woonkamer/gang
-
- // trap- en trapgatmaten
+ const LEVEL=2.8, WALL_H=LEVEL, UP_H=2.8, ROOF=LEVEL+UP_H;
+ const SLAB_BOT=LEVEL-.14, TH=.16, STEP_UP=.34, EYE=1.7;
+ const XW=-4, XE=4, ZS=3, ZN=-10, ZI=-3;
  const STEPS=14,RISE=LEVEL/STEPS,RUN=.28,SW=2.0,SX=-3.9,SZ=-4.58;
- const STAIR_EAST=SX+SW;          // -1.90 : oostrand trap
- const STAIR_NORTH=SZ-STEPS*RUN;  // -8.50 : noordrand trap (= noordrand trapgat)
- const OPEN_EAST=-1.0;            // oostrand trapgat: 0,9 m verder oostelijk dan de trap
+ const STAIR_EAST=SX+SW, STAIR_NORTH=SZ-STEPS*RUN, OPEN_EAST=-1.0;
 
  const links=[],pickables=[],obstacles=[],surfaces=[],loadingErrors=[];
  const wallMaterial=new THREE.MeshStandardMaterial({color:0xd6d8d1,roughness:1});
@@ -80,7 +78,7 @@ try {
   m.position.set((x1+x2)/2,y0+h/2,(z1+z2)/2);m.rotation.y=-Math.atan2(z2-z1,x2-x1);scene.add(m);return solid(m);
  }
 
- surface(-30,-30,30,30,0);                     // gras is overal beloopbaar
+ surface(-30,-30,30,30,0);
 
  // ---------------- begane grond ----------------
  const roomMat=new THREE.MeshStandardMaterial({color:0x967e60,roughness:1});
@@ -88,12 +86,12 @@ try {
   const f=new THREE.Mesh(new THREE.PlaneGeometry(Math.abs(x2-x1),Math.abs(z2-z1)),roomMat);
   f.rotation.x=-Math.PI/2;f.position.set((x1+x2)/2,.02,(z1+z2)/2);scene.add(f);
  }
- wall(XW,ZS,-0.7,ZS); wall(0.7,ZS,XE,ZS);         // zuidmuur met voordeur
- wall(-0.7,ZS,0.7,ZS,LEVEL-.6,.6);                // latei boven de voordeur
- wall(XW,ZN,XE,ZN);                               // noordmuur
- wall(XW,ZS,XW,ZN);                               // westmuur
- wall(XE,ZS,XE,ZN);                               // oostmuur
- wall(XW,ZI,-0.8,ZI); wall(0.8,ZI,XE,ZI);         // tussenmuur met doorgang
+ wall(XW,ZS,-0.7,ZS); wall(0.7,ZS,XE,ZS);
+ wall(-0.7,ZS,0.7,ZS,LEVEL-.6,.6);
+ wall(XW,ZN,XE,ZN);
+ wall(XW,ZS,XW,ZN);
+ wall(XE,ZS,XE,ZN);
+ wall(XW,ZI,-0.8,ZI); wall(0.8,ZI,XE,ZI);
 
  // ---------------- trap ----------------
  for(let i=0;i<STEPS;i++){
@@ -104,20 +102,18 @@ try {
  }
 
  // ---------------- verdieping ----------------
- slab(XW,ZS,XE,SZ);                               // zuidstrook (boven woonkamer + zuidelijk deel gang)
- slab(OPEN_EAST,STAIR_NORTH,XE,SZ);               // ooststrook naast het trapgat (start bij x=-1.0)
- slab(XW,STAIR_NORTH,SX,SZ);                      // smalle strook tussen trap en westmuur
- slab(XW,ZN,XE,STAIR_NORTH);                      // noordstrook (landing boven)
- // muren verdieping
+ slab(XW,ZS,XE,SZ);
+ slab(OPEN_EAST,STAIR_NORTH,XE,SZ);
+ slab(XW,STAIR_NORTH,SX,SZ);
+ slab(XW,ZN,XE,STAIR_NORTH);
  wall(XW,ZS,XE,ZS,LEVEL,UP_H);
  wall(XW,ZN,XE,ZN,LEVEL,UP_H);
  wall(XW,ZS,XW,ZN,LEVEL,UP_H);
  wall(XE,ZS,XE,ZN,LEVEL,UP_H);
  wall(XW,ZI,-0.8,ZI,LEVEL,UP_H); wall(0.8,ZI,XE,ZI,LEVEL,UP_H);
- // leuningen rond het trapgat
- rail(OPEN_EAST,SZ,OPEN_EAST,STAIR_NORTH,LEVEL,.95,.12);   // oostrand van het gat
- rail(STAIR_EAST,SZ,OPEN_EAST,SZ,LEVEL,.95,.12);           // zuidrand van het gat (oost van de trap)
- rail(STAIR_EAST,STAIR_NORTH,OPEN_EAST,STAIR_NORTH,LEVEL,.95,.12); // noordrand van het gat
+ rail(OPEN_EAST,SZ,OPEN_EAST,STAIR_NORTH,LEVEL,.95,.12);
+ rail(STAIR_EAST,SZ,OPEN_EAST,SZ,LEVEL,.95,.12);
+ rail(STAIR_EAST,STAIR_NORTH,OPEN_EAST,STAIR_NORTH,LEVEL,.95,.12);
 
  // ---------------- dak & licht ----------------
  const roof=new THREE.Mesh(new THREE.BoxGeometry(XE-XW+.6,.25,ZS-ZN+.6),new THREE.MeshStandardMaterial({color:0x6b4b3a,roughness:1}));
@@ -127,6 +123,122 @@ try {
   const s=new THREE.Mesh(new THREE.SphereGeometry(.1,12,10),new THREE.MeshBasicMaterial({color:0xfff4dc}));
   s.position.set(x,y,z);scene.add(s);
  }
+
+ // ---------------- 3D-model op het gras, links van het huis ----------------
+ const MODEL_X=-9, MODEL_Z=0, MODEL_TARGET=1.0;
+ const AUTO_GLB='./model.glb';
+ const AUTO_STL='./model.stl';
+ const STL_ROT={x:0, y:0, z:0};
+ let modelRoot=null, modelBox=null, modelPickables=[];
+
+ // DRACO-decoder (nodig als het GLB-bestand DRACO-gecomprimeerde geometrie bevat)
+ const dracoLoader=new DRACOLoader();
+ dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/libs/draco/gltf/');
+ dracoLoader.setDecoderConfig({type:'js'});
+
+ const gltfLoader=new GLTFLoader();
+ gltfLoader.setDRACOLoader(dracoLoader);
+ const stlLoader=new STLLoader();
+
+ function buildDefaultStep(){
+  const g=new THREE.Group();
+  const mat=new THREE.MeshStandardMaterial({color:0xc9b18a,roughness:.85,metalness:.05});
+  const dark=new THREE.MeshStandardMaterial({color:0x8a7455,roughness:.9});
+  const tiers=[
+   {w:1.00,d:0.90,h:0.20,m:mat},
+   {w:0.72,d:0.62,h:0.20,m:dark},
+   {w:0.44,d:0.34,h:0.20,m:mat},
+  ];
+  let y=0;
+  for(const t of tiers){
+   const m=new THREE.Mesh(new THREE.BoxGeometry(t.w,t.h,t.d),t.m);
+   m.position.set(0,y+t.h/2,0);g.add(m);
+   y+=t.h;
+  }
+  return g;
+ }
+
+ function placeModel(root){
+  if(modelRoot){
+   scene.remove(modelRoot);
+   if(modelBox){const i=obstacles.indexOf(modelBox);if(i>=0)obstacles.splice(i,1);}
+   for(const p of modelPickables){const i=pickables.indexOf(p);if(i>=0)pickables.splice(i,1);}
+   modelPickables=[];
+  }
+  modelRoot=root;
+  root.position.set(MODEL_X,0,MODEL_Z);
+  scene.add(root);
+  root.updateMatrixWorld(true);
+  modelBox=new THREE.Box3().setFromObject(root);
+  obstacles.push(modelBox);
+  root.traverse(o=>{if(o.isMesh){pickables.push(o);modelPickables.push(o);}});
+ }
+
+ function fitAndPlace(obj){
+  obj.updateMatrixWorld(true);
+  let b=new THREE.Box3().setFromObject(obj);
+  const size=new THREE.Vector3();b.getSize(size);
+  const maxDim=Math.max(size.x,size.y,size.z)||1;
+  obj.scale.setScalar(MODEL_TARGET/maxDim);
+  obj.updateMatrixWorld(true);
+  b=new THREE.Box3().setFromObject(obj);
+  const c=new THREE.Vector3();b.getCenter(c);
+  obj.position.set(-c.x,-b.min.y,-c.z);
+  const wrap=new THREE.Group();wrap.add(obj);
+  placeModel(wrap);
+ }
+
+ function makeStlWrap(geom){
+  geom.computeVertexNormals();
+  const mat=new THREE.MeshStandardMaterial({color:0xc9b18a,roughness:.8,metalness:.1,side:THREE.DoubleSide});
+  const mesh=new THREE.Mesh(geom,mat);
+  mesh.rotation.set(STL_ROT.x, STL_ROT.y, STL_ROT.z);
+  const wrap=new THREE.Group();wrap.add(mesh);
+  return wrap;
+ }
+
+ function useDefault(reason){
+  placeModel(buildDefaultStep());
+  status.textContent=reason+' Standaard step-model staat op het gras.';
+ }
+
+ function tryStl(){
+  stlLoader.load(AUTO_STL,
+   geom=>{try{fitAndPlace(makeStlWrap(geom));status.textContent='STL geladen uit ./model.stl';}
+          catch(err){useDefault('STL kon niet geplaatst worden.');console.error(err);}},
+   undefined,
+   ()=>{useDefault('Geen model.glb of model.stl gevonden — open via een webserver (niet file://).');}
+  );
+ }
+
+ // Auto-load: eerst GLB (met DRACO), anders STL, anders standaard
+ gltfLoader.load(AUTO_GLB,
+  g=>{
+   try{fitAndPlace(g.scene);status.textContent='GLB geladen uit ./model.glb';console.log('[3D] GLB geladen uit', AUTO_GLB);}
+   catch(err){console.error(err);useDefault('GLB kon niet geplaatst worden.');}
+  },
+  undefined,
+  ()=>{ console.log('[3D] Geen model.glb, probeer model.stl'); tryStl(); }
+ );
+
+ document.querySelector('#resetModel').onclick=()=>{
+  placeModel(buildDefaultStep());
+  status.textContent='Standaard step-model geplaatst op het gras.';
+ };
+
+ document.querySelector('#model').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  const name=f.name.toLowerCase();
+  const url=URL.createObjectURL(f);
+  status.textContent='3D-model laden…';
+  const onErr=err=>{URL.revokeObjectURL(url);status.textContent='3D-model kon niet geladen worden: '+(err?.message||err);console.error(err);};
+  if(name.endsWith('.stl')){
+   stlLoader.load(url, geom=>{URL.revokeObjectURL(url);try{fitAndPlace(makeStlWrap(geom));status.textContent='STL geplaatst: '+f.name;}catch(err){onErr(err);}},undefined,onErr);
+  } else {
+   gltfLoader.load(url, g=>{URL.revokeObjectURL(url);try{fitAndPlace(g.scene);status.textContent='3D-model geplaatst: '+f.name;}catch(err){onErr(err);}},undefined,onErr);
+  }
+  e.target.value='';
+ });
 
  // ---------------- foto's ----------------
  function placeholder(title){
@@ -193,7 +305,6 @@ try {
  window.addEventListener('resize',()=>{resetInput();camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 
  // ---------------- lopen & botsen (3D) ----------------
- // Kleine radius + geen platen meer direct naast de trap => niet meer blokkeren halverwege.
  function blocked(x,z,feet){
   const r=.22,lo=feet+STEP_UP,hi=feet+1.65;
   return obstacles.some(b=>b.max.y>lo&&b.min.y<hi&&x>b.min.x-r&&x<b.max.x+r&&z>b.min.z-r&&z<b.max.z+r);
@@ -207,7 +318,6 @@ try {
   return isFinite(best)?best:fromY;
  }
 
- status.textContent='Loop naar binnen, de gang in, en neem de trap naar de verdieping.';
  function animate(now){
   requestAnimationFrame(animate);const dt=Math.min((now-previous)/1000,.05);previous=now;
   let forward=Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'))-joyY;
