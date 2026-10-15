@@ -47,11 +47,10 @@ try {
  const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(renderer.domElement);const canvas=renderer.domElement;
 
  // ---------------- verlichting: vier knoppen ----------------
- // Pas deze getallen aan om de hele scène helderder of donkerder te maken.
- const LIGHT_AMBIENT=0.35;    // hemelvulling (was 1.5) — zachte basisglans op alles
- const LIGHT_SUN=0.55;        // zonlicht (was 1.4) — de richting van het buitenlicht
- const LIGHT_INDOOR=0.35;     // schaalfactor voor alle plafondlampen (was 42..55 per stuk)
- const LIGHT_ACCENT=0.6;      // schaalfactor voor accenten (döner-spit, gevelgloed)
+ const LIGHT_AMBIENT=0.35;
+ const LIGHT_SUN=0.55;
+ const LIGHT_INDOOR=0.35;
+ const LIGHT_ACCENT=0.6;
 
  scene.add(new THREE.HemisphereLight(0xdcecff,0x454238,LIGHT_AMBIENT));
  const sun=new THREE.DirectionalLight(0xffffff,LIGHT_SUN);sun.position.set(6,14,5);scene.add(sun);
@@ -161,7 +160,8 @@ try {
   scene.add(m);
  }
 
- const CX1=-3.2, CX2=3.2, CZ1=-9.5, CZ2=-8.6, CH=1.1;
+ // --- Counter: 1 m zuidelijker, oostkant 0,9 m korter (vrij van trapgat en koelkast) ---
+ const CX1=-3.2, CX2=2.3, CZ1=-8.5, CZ2=-7.6, CH=1.1;
  const counterBody=new THREE.Mesh(new THREE.BoxGeometry(CX2-CX1,CH,CZ2-CZ1),counterBodyMat);
  counterBody.position.set((CX1+CX2)/2,LEVEL2+CH/2,(CZ1+CZ2)/2);
  scene.add(counterBody);solid(counterBody);
@@ -172,14 +172,14 @@ try {
 
  const caseH=0.55, caseD=0.45, caseW=4.5;
  const glassCase=new THREE.Mesh(new THREE.BoxGeometry(caseW,caseH,caseD),glassMat);
- glassCase.position.set(-0.7,LEVEL2+CH+0.06+caseH/2,CZ1+caseD/2+0.2);
+ glassCase.position.set((CX1+CX2)/2,LEVEL2+CH+0.06+caseH/2,(CZ1+CZ2)/2);
  scene.add(glassCase);
 
  const reg=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.35,0.35),new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.4,metalness:0.3}));
- reg.position.set(2.3,LEVEL2+CH+0.06+0.175,CZ2-0.4);
+ reg.position.set(CX2-0.9,LEVEL2+CH+0.06+0.175,CZ2-0.4);
  scene.add(reg);
  const regScreen=new THREE.Mesh(new THREE.PlaneGeometry(0.25,0.15),new THREE.MeshBasicMaterial({color:0x9effa0}));
- regScreen.position.set(2.3,LEVEL2+CH+0.06+0.35+0.02,CZ2-0.4);
+ regScreen.position.set(CX2-0.9,LEVEL2+CH+0.06+0.35+0.02,CZ2-0.4);
  regScreen.rotation.x=-Math.PI/4;
  scene.add(regScreen);
 
@@ -241,7 +241,6 @@ try {
   new THREE.MeshBasicMaterial({map:makeNeonTexture('KEBAB','#ffcc22')}));
  neon2.position.set(0,LEVEL2+2.0,ZS-0.09); neon2.rotation.y=Math.PI; scene.add(neon2);
 
- // Buitengevel-neon met automatisch passende fontgrootte
  function makeFacadeNeonTexture(text,color,maxFontSize=200){
   const c=document.createElement('canvas');c.width=1400;c.height=400;
   const ctx=c.getContext('2d');
@@ -311,14 +310,12 @@ try {
  makeTable(-2.3,-2.2); makeTable(0.4,-2.2);
  makeTable(-1,1.5);
 
- // Plafondlampen Dönerbar — geschaald met LIGHT_INDOOR
  for(const [x,y,z,i] of [[0,7.8,0,55],[0,7.8,-6,55],[-3,7.8,-3,22],[3,7.8,-1,22]]){
   const l=new THREE.PointLight(0xffe0b8,i*LIGHT_INDOOR,14,2); l.position.set(x,y,z); scene.add(l);
   const s=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.06,1.4),new THREE.MeshBasicMaterial({color:0xfff8e0}));
   s.position.set(x,y+0.08,z); scene.add(s);
  }
 
- // --- dak & basisverlichting (geschaald met LIGHT_INDOOR) ---
  const roof=new THREE.Mesh(new THREE.BoxGeometry(XE-XW+.6,.25,ZS-ZN+.6),new THREE.MeshStandardMaterial({color:0x6b4b3a,roughness:1}));
  roof.position.set((XW+XE)/2,ROOF+.12,(ZS+ZN)/2);scene.add(roof);pickables.push(roof);
  for(const [x,y,z,i] of [[0,2.5,0,42],[0,2.5,-6.5,42],[0,5.3,0,48],[0,5.3,-6.5,48]]){
