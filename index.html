@@ -27,7 +27,7 @@
 <button id="lock">Muis vastzetten</button> <button id="toggle">Joystick tonen/verbergen</button>
 <p>Loop door de voordeur naar binnen, de gang in en neem de trap naar de verdieping. Georgië hangt achteraan de gang.</p>
 <p>Selecteer een foto en vervang die tijdelijk door een lokaal bestand:<br><input id="upload" type="file" accept="image/*"><br><small>Er wordt niets geüpload. Herladen herstelt de foto's uit de map afbeeldingen.</small></p>
-<p>3D-model op het gras, links van het huis:<br><input id="model" type="file" accept=".glb,.gltf,.stl,model/gltf-binary,model/gltf+json,model/stl"><br><button id="resetModel">Standaard step-model</button><br><small>Zet je GLB naast deze HTML onder de naam <code>model.glb</code> en open de pagina via een <strong>webserver</strong> (niet via file://). Valt terug op <code>model.stl</code>, anders op het standaard step-model.</small></p>
+<p>3D-model midden in de woonkamer:<br><input id="model" type="file" accept=".glb,.gltf,.stl,model/gltf-binary,model/gltf+json,model/stl"><br><button id="resetModel">Standaard step-model</button><br><small>Zet je GLB naast deze HTML onder de naam <code>model.glb</code> en open de pagina via een <strong>webserver</strong> (niet via file://). Valt terug op <code>model.stl</code>, anders op het standaard step-model.</small></p>
 <p>Directe albumlinks:<br><a href="https://photos.app.goo.gl/VvYa1KCkWFjQkYjx8" target="_blank" rel="noopener noreferrer">Georgië</a> · <a href="https://photos.app.goo.gl/JpmaoD9XZU9JVygc8" target="_blank" rel="noopener noreferrer">Bulgarije</a> · <a href="https://photos.app.goo.gl/nwTJQ991okddfWQU7" target="_blank" rel="noopener noreferrer">Montenegro</a></p>
 </details><div id="status">3D-bibliotheek laden…</div></div>
 <div id="cross">+</div><div id="stick"><div id="knob"></div><span>Lopen</span></div>
@@ -119,8 +119,9 @@ try {
   s.position.set(x,y,z);scene.add(s);
  }
 
- // ---------------- 3D-model op het gras, links van het huis ----------------
- const MODEL_X=-9, MODEL_Z=0, MODEL_TARGET=1.0;
+ // ---------------- 3D-model midden in de woonkamer ----------------
+ // Woonkamer loopt van x -4..4 en z -3..3, dus het midden is (0, 0).
+ const MODEL_X=0, MODEL_Z=0, MODEL_TARGET=1.0;
  const AUTO_GLB='./model.glb';
  const AUTO_STL='./model.stl';
  const STL_ROT={x:0, y:0, z:0};
@@ -134,7 +135,6 @@ try {
  gltfLoader.setDRACOLoader(dracoLoader);
  const stlLoader=new STLLoader();
 
- // Diagnose: welk protocol gebruiken we?
  const isFileProtocol=location.protocol==='file:';
  console.log('[3D] Protocol:', location.protocol, '| base URL:', location.href);
  console.log('[3D] Auto-load GLB URL:', new URL(AUTO_GLB, location.href).href);
@@ -169,7 +169,8 @@ try {
    modelPickables=[];
   }
   modelRoot=root;
-  root.position.set(MODEL_X,0,MODEL_Z);
+  // Iets boven de kamerondervloer (y=0.02), anders z-fight met de vloer.
+  root.position.set(MODEL_X,0.02,MODEL_Z);
   scene.add(root);
   root.updateMatrixWorld(true);
   modelBox=new THREE.Box3().setFromObject(root);
@@ -200,7 +201,6 @@ try {
   return wrap;
  }
 
- // Hulpfunctie: controleer eerst of het bestand bereikbaar is met fetch (duidelijker foutmelding)
  async function checkUrl(url){
   try{
    const r=await fetch(url,{method:'HEAD'});
@@ -212,7 +212,7 @@ try {
 
  function useDefault(reason,cls){
   placeModel(buildDefaultStep());
-  setStatus(reason+' Standaard step-model staat op het gras.', cls||'');
+  setStatus(reason+' Standaard step-model staat midden in de woonkamer.', cls||'');
  }
 
  async function tryStl(){
@@ -235,7 +235,6 @@ try {
 
  async function autoLoad(){
   if(isFileProtocol){
-   // Bij file:// werkt fetch niet; direct standaard tonen met duidelijke hint.
    useDefault('Auto-load werkt niet via file://.','err');
    return;
   }
@@ -265,7 +264,7 @@ try {
 
  document.querySelector('#resetModel').onclick=()=>{
   placeModel(buildDefaultStep());
-  setStatus('Standaard step-model geplaatst op het gras.','ok');
+  setStatus('Standaard step-model geplaatst midden in de woonkamer.','ok');
  };
 
  document.querySelector('#model').addEventListener('change',e=>{
