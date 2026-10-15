@@ -120,11 +120,14 @@ try {
  }
 
  // ---------------- 3D-model op de verdieping ----------------
- // Plaats op de verdieping: x,z binnen de bovenkamer (x -4..4, z -3..3),
- // en y = LEVEL + een kleine offset (vloer van de verdieping ligt op y=LEVEL=2.8).
- const MODEL_X=0, MODEL_Z=1.5;
- const MODEL_Y=LEVEL+0.02;              // <<-- op de verdieping, net boven de vloer
- const MODEL_TARGET=2.0;                // langste zijde in meters
+ // Coördinaten op de verdieping:
+ //   x: -4 (west) .. +4 (oost)
+ //   z: +3 (voorkant/voordeur) .. -3 (achterkant/binnendeur naar de gang)
+ //   "naar voor" = richting van de voordeur = z groter
+ //   "naar achter" = richting van de gang = z kleiner
+ const MODEL_X=0, MODEL_Z=0.5;
+ const MODEL_Y=LEVEL+0.02;               // op de verdiepingsvloer
+ const MODEL_TARGET=2.0;                 // langste zijde in meters
  const AUTO_GLB='./model.glb';
  const AUTO_STL='./model.stl';
  const STL_ROT={x:0, y:0, z:0};
@@ -139,7 +142,7 @@ try {
  const stlLoader=new STLLoader();
 
  const isFileProtocol=location.protocol==='file:';
- console.log('[3D] MODEL_TARGET =', MODEL_TARGET, 'm | positie y =', MODEL_Y);
+ console.log('[3D] Positie:', MODEL_X, MODEL_Y, MODEL_Z, '| MODEL_TARGET =', MODEL_TARGET, 'm');
 
  function buildDefaultStep(){
   const g=new THREE.Group();
@@ -173,6 +176,10 @@ try {
   modelBox=new THREE.Box3().setFromObject(root);
   obstacles.push(modelBox);
   root.traverse(o=>{if(o.isMesh){pickables.push(o);modelPickables.push(o);}});
+  const sz=new THREE.Vector3();modelBox.getSize(sz);
+  console.log('[3D] Box op de wereld: x',modelBox.min.x.toFixed(2),'..',modelBox.max.x.toFixed(2),
+              '| y',modelBox.min.y.toFixed(2),'..',modelBox.max.y.toFixed(2),
+              '| z',modelBox.min.z.toFixed(2),'..',modelBox.max.z.toFixed(2));
  }
 
  function fitAndPlace(obj){
