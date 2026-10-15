@@ -25,10 +25,10 @@
 <p>Telefoon: joystick = lopen; over het beeld slepen = rondkijken; kort tikken op een foto = selecteren.</p>
 <p>Computer: WASD / pijltjes = lopen; Shift = sneller; muis slepen = rondkijken. Je kunt ook de muis vastzetten; Esc geeft hem vrij.</p>
 <button id="lock">Muis vastzetten</button> <button id="toggle">Joystick tonen/verbergen</button> <button id="mush">Paddenstoelen opnieuw</button>
-<p>Loop door de voordeur naar binnen, de gang in en neem de trap naar de verdieping. Georgië hangt achteraan de gang; het 3D-model staat boven.</p>
+<p>Loop door de voordeur naar binnen, de gang in en neem de trap naar de 2e verdieping. Daar vind je het 3D-model en, via een tweede trap, op de 3e verdieping een Dönerbar.</p>
 <p>Selecteer een foto en vervang die tijdelijk door een lokaal bestand:<br><input id="upload" type="file" accept="image/*"><br><small>Er wordt niets geüpload. Herladen herstelt de foto's uit de map afbeeldingen.</small></p>
-<p>3D-model op de verdieping:<br><input id="model" type="file" accept=".glb,.gltf,.stl,model/gltf-binary,model/gltf+json,model/stl"><br><button id="resetModel">Standaard step-model</button><br><small>Grootte stel je in met <code>MODEL_TARGET</code> (in meters, langste zijde). Plaats stel je in met <code>MODEL_X</code>, <code>MODEL_Y</code>, <code>MODEL_Z</code>.</small></p>
-<p>Rond het huis staan bij elke herlaadbeurt willekeurige paddenstoelen op het gras. Klik op <em>Paddenstoelen opnieuw</em> voor een nieuwe set.</p>
+<p>3D-model op de verdieping:<br><input id="model" type="file" accept=".glb,.gltf,.stl,model/gltf-binary,model/gltf+json,model/stl"><br><button id="resetModel">Standaard step-model</button><br><small>Grootte stel je in met <code>MODEL_TARGET</code>. Plaats met <code>MODEL_X/Y/Z</code>.</small></p>
+<p>Rond het huis staan bij elke herlaadbeurt willekeurige paddenstoelen op het gras.</p>
 <p>Directe albumlinks:<br><a href="https://photos.app.goo.gl/VvYa1KCkWFjQkYjx8" target="_blank" rel="noopener noreferrer">Georgië</a> · <a href="https://photos.app.goo.gl/JpmaoD9XZU9JVygc8" target="_blank" rel="noopener noreferrer">Bulgarije</a> · <a href="https://photos.app.goo.gl/nwTJQ991okddfWQU7" target="_blank" rel="noopener noreferrer">Montenegro</a></p>
 </details><div id="status">3D-bibliotheek laden…</div></div>
 <div id="cross">+</div><div id="stick"><div id="knob"></div><span>Lopen</span></div>
@@ -51,7 +51,8 @@ try {
  ground.rotation.x=-Math.PI/2;scene.add(ground);
  const grid=new THREE.GridHelper(60,60,0x4f8f3c,0x35682a);grid.position.y=.01;scene.add(grid);
 
- const LEVEL=2.8, WALL_H=LEVEL, UP_H=2.8, ROOF=LEVEL+UP_H;
+ const LEVEL=2.8, WALL_H=LEVEL, UP_H=2.8, ROOF=LEVEL*3;
+ const LEVEL2=LEVEL*2;
  const SLAB_BOT=LEVEL-.14, TH=.16, STEP_UP=.34, EYE=1.7;
  const XW=-4, XE=4, ZS=3, ZN=-10, ZI=-3;
  const STEPS=14,RISE=LEVEL/STEPS,RUN=.28,SW=2.0,SX=-3.9,SZ=-4.58;
@@ -65,8 +66,8 @@ try {
 
  function surface(x1,z1,x2,z2,y){surfaces.push({minX:Math.min(x1,x2),maxX:Math.max(x1,x2),minZ:Math.min(z1,z2),maxZ:Math.max(z1,z2),y});}
  function solid(m){m.updateMatrixWorld(true);obstacles.push(new THREE.Box3().setFromObject(m));pickables.push(m);return m;}
- function wall(x1,z1,x2,z2,y0=0,h=WALL_H,t=TH){
-  const m=new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(x2-x1,z2-z1),h,t),wallMaterial);
+ function wall(x1,z1,x2,z2,y0=0,h=WALL_H,t=TH,mat=wallMaterial){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(Math.hypot(x2-x1,z2-z1),h,t),mat);
   m.position.set((x1+x2)/2,y0+h/2,(z1+z2)/2);m.rotation.y=-Math.atan2(z2-z1,x2-x1);scene.add(m);return solid(m);
  }
  function slab(x1,z1,x2,z2,top=LEVEL,bot=SLAB_BOT){
@@ -99,6 +100,7 @@ try {
   surface(SX,z2,SX+SW,z1,top);
  }
 
+ // Verdieping 2 slabs
  slab(XW,ZS,XE,SZ);
  slab(OPEN_EAST,STAIR_NORTH,XE,SZ);
  slab(XW,STAIR_NORTH,SX,SZ);
@@ -112,6 +114,183 @@ try {
  rail(STAIR_EAST,SZ,OPEN_EAST,SZ,LEVEL,.95,.12);
  rail(STAIR_EAST,STAIR_NORTH,OPEN_EAST,STAIR_NORTH,LEVEL,.95,.12);
 
+ // ============ VERDIEPING 3: DÖNERBAR ============
+ const tileMat=new THREE.MeshStandardMaterial({color:0xe8e4dc,roughness:0.55});
+ const darkFloor=new THREE.MeshStandardMaterial({color:0x3d3d3d,roughness:0.65});
+ const counterTopMat=new THREE.MeshStandardMaterial({color:0x1c1c1c,roughness:0.4,metalness:0.25});
+ const counterBodyMat=new THREE.MeshStandardMaterial({color:0xf5f0e6,roughness:0.5});
+ const steel=new THREE.MeshStandardMaterial({color:0xb9bdc1,roughness:0.3,metalness:0.8});
+ const glassMat=new THREE.MeshStandardMaterial({color:0xcfe8ee,roughness:0.1,transparent:true,opacity:0.35,side:THREE.DoubleSide});
+ const meatMat=new THREE.MeshStandardMaterial({color:0x8b4a2b,roughness:0.8});
+ const seatMat=new THREE.MeshStandardMaterial({color:0x7a1c1c,roughness:0.6});
+ const woodMat=new THREE.MeshStandardMaterial({color:0x8a5a2b,roughness:0.7});
+ const neonRedMat=new THREE.MeshBasicMaterial({color:0xff2a2a});
+
+ // Verdieping 3 muren (tegel)
+ wall(XW,ZS,XE,ZS,LEVEL2,UP_H,TH,tileMat);
+ wall(XW,ZN,XE,ZN,LEVEL2,UP_H,TH,tileMat);
+ wall(XW,ZS,XW,ZN,LEVEL2,UP_H,TH,tileMat);
+ wall(XE,ZS,XE,ZN,LEVEL2,UP_H,TH,tileMat);
+
+ // Tweede trap: van verdieping 2 (noordzijde) omhoog naar verdieping 3, richting zuid
+ const S2_W=1.1, S2_X=XE-S2_W, S2_ZB=-8.5, S2_ZT=-4.58;
+ const S2_STEPS=14, S2_RISE=LEVEL/S2_STEPS, S2_RUN=(S2_ZT-S2_ZB)/S2_STEPS;
+ for(let i=0;i<S2_STEPS;i++){
+  const z1=S2_ZB+i*S2_RUN, z2=z1+S2_RUN, h=(i+1)*S2_RISE;
+  const m=new THREE.Mesh(new THREE.BoxGeometry(S2_W,h,S2_RUN),stairMaterial);
+  m.position.set(S2_X+S2_W/2,LEVEL+h/2,(z1+z2)/2);
+  scene.add(m);solid(m);
+  surface(S2_X,z1,S2_X+S2_W,z2,LEVEL+h);
+ }
+
+ // Verdieping 3 vloerplaten (met trapgat voor trap 2)
+ slab(XW,-4.58,XE,ZS,LEVEL2,LEVEL2-0.14);          // zuidelijk van trapgat
+ slab(XW,-8.5,S2_X,-4.58,LEVEL2,LEVEL2-0.14);      // westelijk van trapgat
+ slab(XW,ZN,XE,-8.5,LEVEL2,LEVEL2-0.14);           // noordelijk van trapgat
+
+ // Donkere tegelvloer visueel
+ for(const [x1,z1,x2,z2] of [[XW,-4.58,XE,ZS],[XW,-8.5,S2_X,-4.58],[XW,ZN,XE,-8.5]]){
+  const g=new THREE.PlaneGeometry(Math.abs(x2-x1),Math.abs(z2-z1));
+  const m=new THREE.Mesh(g,darkFloor);
+  m.rotation.x=-Math.PI/2;
+  m.position.set((x1+x2)/2,LEVEL2+0.006,(z1+z2)/2);
+  scene.add(m);
+ }
+
+ // --- Counter ---
+ const CX1=-3.2, CX2=3.2, CZ1=-9.5, CZ2=-8.6, CH=1.1;
+ const counterBody=new THREE.Mesh(new THREE.BoxGeometry(CX2-CX1,CH,CZ2-CZ1),counterBodyMat);
+ counterBody.position.set((CX1+CX2)/2,LEVEL2+CH/2,(CZ1+CZ2)/2);
+ scene.add(counterBody);solid(counterBody);
+
+ const counterTop=new THREE.Mesh(new THREE.BoxGeometry(CX2-CX1+0.1,0.06,CZ2-CZ1+0.1),counterTopMat);
+ counterTop.position.set((CX1+CX2)/2,LEVEL2+CH+0.03,(CZ1+CZ2)/2);
+ scene.add(counterTop);
+
+ // Glazen vitrine op de counter
+ const caseH=0.55, caseD=0.45, caseW=4.5;
+ const glassCase=new THREE.Mesh(new THREE.BoxGeometry(caseW,caseH,caseD),glassMat);
+ glassCase.position.set(-0.7,LEVEL2+CH+0.06+caseH/2,CZ1+caseD/2+0.2);
+ scene.add(glassCase);
+
+ // Kassa
+ const reg=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.35,0.35),new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.4,metalness:0.3}));
+ reg.position.set(2.3,LEVEL2+CH+0.06+0.175,CZ2-0.4);
+ scene.add(reg);
+ const regScreen=new THREE.Mesh(new THREE.PlaneGeometry(0.25,0.15),new THREE.MeshBasicMaterial({color:0x9effa0}));
+ regScreen.position.set(2.3,LEVEL2+CH+0.06+0.35+0.02,CZ2-0.4);
+ regScreen.rotation.x=-Math.PI/4;
+ scene.add(regScreen);
+
+ // --- Döner-spit achter de counter ---
+ const spitX=-0.7, spitZ=-9.75, meatH=1.2, meatR=0.35;
+ const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,2.4,12),steel);
+ pole.position.set(spitX,LEVEL2+1.2,spitZ);
+ scene.add(pole);
+ const meat=new THREE.Mesh(new THREE.CylinderGeometry(0.08,meatR,meatH,20),meatMat);
+ meat.position.set(spitX,LEVEL2+0.65,spitZ);
+ scene.add(meat);
+ const meatCap=new THREE.Mesh(new THREE.ConeGeometry(meatR,meatR*1.5,20),meatMat);
+ meatCap.position.set(spitX,LEVEL2+0.65+meatH/2+meatR*0.75,spitZ);
+ scene.add(meatCap);
+
+ // Metalen achterwand
+ const backPanel=new THREE.Mesh(new THREE.BoxGeometry(1.4,1.8,0.1),new THREE.MeshStandardMaterial({color:0x8c8f92,metalness:0.7,roughness:0.35}));
+ backPanel.position.set(spitX,LEVEL2+1.1,spitZ-0.4);
+ scene.add(backPanel);
+
+ // Rode warmtelampen
+ for(const dx of [-0.35,0.35]){
+  const lamp=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.08,0.15),neonRedMat);
+  lamp.position.set(spitX+dx,LEVEL2+1.9,spitZ+0.05);
+  scene.add(lamp);
+ }
+ const spitLight=new THREE.PointLight(0xff3a1a,12,7,2);
+ spitLight.position.set(spitX,LEVEL2+1.4,spitZ+0.3);
+ scene.add(spitLight);
+
+ // --- Menubord op noordmuur ---
+ function makeMenuTexture(){
+  const c=document.createElement('canvas');c.width=1024;c.height=680;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#131313'; ctx.fillRect(0,0,c.width,c.height);
+  ctx.fillStyle='#c0392b'; ctx.fillRect(0,0,c.width,110);
+  ctx.fillStyle='#f1c40f'; ctx.font='bold 72px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('DÖNERBURG',c.width/2,55);
+  const items=[['DÖNER','6,50'],['DÜRÜM','7,00'],['FALAFEL','6,00'],['PIZZA','7,50'],['POMMES','3,50'],['AYRAN','1,50'],['COLA','2,00'],['WASSER','1,00']];
+  const colW=c.width/2, rowH=105;
+  ctx.font='bold 46px system-ui';
+  items.forEach((it,i)=>{
+   const col=i%2, row=Math.floor(i/2), bx=col*colW, by=170+row*rowH;
+   ctx.textAlign='left'; ctx.fillStyle='#fff'; ctx.fillText(it[0],bx+40,by);
+   ctx.textAlign='right'; ctx.fillStyle='#f1c40f'; ctx.fillText(it[1]+' €',bx+colW-40,by);
+  });
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
+ }
+ const menuBoard=new THREE.Mesh(new THREE.PlaneGeometry(5.8,3.85),new THREE.MeshBasicMaterial({map:makeMenuTexture()}));
+ menuBoard.position.set(0,LEVEL2+2.05,ZN+0.09);
+ scene.add(menuBoard);
+
+ // --- Neonreclames ---
+ function makeNeonTexture(text,color){
+  const c=document.createElement('canvas');c.width=1024;c.height=512;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,c.width,c.height);
+  ctx.shadowColor=color; ctx.shadowBlur=40;
+  ctx.fillStyle=color; ctx.font='bold 200px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(text,c.width/2,c.height/2);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
+ }
+ const neon1=new THREE.Mesh(new THREE.PlaneGeometry(3.5,1.75),
+  new THREE.MeshBasicMaterial({map:makeNeonTexture('DÖNER','#ff2a2a')}));
+ neon1.position.set(XW+0.09,LEVEL2+2.0,-2); neon1.rotation.y=Math.PI/2; scene.add(neon1);
+ const neon2=new THREE.Mesh(new THREE.PlaneGeometry(3.5,1.75),
+  new THREE.MeshBasicMaterial({map:makeNeonTexture('KEBAP','#ffcc22')}));
+ neon2.position.set(0,LEVEL2+2.0,ZS-0.09); neon2.rotation.y=Math.PI; scene.add(neon2);
+
+ // --- Drankkoelkast in noordwesthoek ---
+ const frX=-3.3, frZ=-9.2, frW=0.85, frD=0.75, frH=1.85;
+ const fridge=new THREE.Mesh(new THREE.BoxGeometry(frW,frH,frD),steel);
+ fridge.position.set(frX,LEVEL2+frH/2,frZ); scene.add(fridge); solid(fridge);
+ const fridgeGlass=new THREE.Mesh(new THREE.PlaneGeometry(frW*0.88,frH*0.85),
+  new THREE.MeshStandardMaterial({color:0xcfe8ee,roughness:0.05,transparent:true,opacity:0.4}));
+ fridgeGlass.position.set(frX,LEVEL2+frH/2,frZ+frD/2+0.006); scene.add(fridgeGlass);
+ for(let r=0;r<3;r++) for(let c=0;c<3;c++){
+  const bc=[0xc0392b,0x2c7ac0,0xd4c04a][(r+c)%3];
+  const b=new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.045,0.22,10),
+    new THREE.MeshStandardMaterial({color:bc,roughness:0.5}));
+  b.position.set(frX-frW*0.28+c*frW*0.28, LEVEL2+0.4+r*0.55, frZ);
+  scene.add(b);
+ }
+
+ // --- Tafels met krukjes ---
+ function makeTable(x,z){
+  const topW=0.7, legH=0.75;
+  const top=new THREE.Mesh(new THREE.BoxGeometry(topW,0.05,topW),woodMat);
+  top.position.set(x,LEVEL2+legH+0.025,z); scene.add(top);
+  for(const [dx,dz] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
+   const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,legH,8),steel);
+   leg.position.set(x+dx*(topW/2-0.05),LEVEL2+legH/2,z+dz*(topW/2-0.05)); scene.add(leg);
+  }
+  for(const [dx,dz] of [[-0.6,0],[0.6,0],[0,-0.6],[0,0.6]]){
+   const seat=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.17,0.06,14),seatMat);
+   seat.position.set(x+dx,LEVEL2+0.45,z+dz); scene.add(seat);
+   const p=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,0.45,8),steel);
+   p.position.set(x+dx,LEVEL2+0.225,z+dz); scene.add(p);
+  }
+ }
+ makeTable(-2.3,-6.5); makeTable(0.4,-6.5);
+ makeTable(-2.3,-2.2); makeTable(0.4,-2.2);
+ makeTable(-1,1.5);
+
+ // Extra verlichting op verdieping 3 (buislampen)
+ for(const [x,y,z,i] of [[0,7.8,0,55],[0,7.8,-6,55],[-3,7.8,-3,22],[3,7.8,-1,22]]){
+  const l=new THREE.PointLight(0xffe0b8,i,14,2); l.position.set(x,y,z); scene.add(l);
+  const s=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.06,1.4),new THREE.MeshBasicMaterial({color:0xfff8e0}));
+  s.position.set(x,y+0.08,z); scene.add(s);
+ }
+
+ // --- dak & basisverlichting ---
  const roof=new THREE.Mesh(new THREE.BoxGeometry(XE-XW+.6,.25,ZS-ZN+.6),new THREE.MeshStandardMaterial({color:0x6b4b3a,roughness:1}));
  roof.position.set((XW+XE)/2,ROOF+.12,(ZS+ZN)/2);scene.add(roof);pickables.push(roof);
  for(const [x,y,z,i] of [[0,2.5,0,42],[0,2.5,-6.5,42],[0,5.3,0,48],[0,5.3,-6.5,48]]){
@@ -121,89 +300,50 @@ try {
  }
 
  // ---------------- paddenstoelen rond het huis ----------------
- // Elke herlaadbeurt een verse set. Random positie, grootte, kleur en kanteling.
- const CAP_COLORS=[
-  0xd94f4f,  // rood
-  0xe8863a,  // oranje
-  0xf2c744,  // geel
-  0x8e5cc7,  // paars
-  0xb15a8a,  // roze-paars
-  0x3fa4a0,  // teal
-  0x6b4a3a,  // bruin
-  0xd9b3b3,  // gebroken wit
-  0x7a3e2f,  // donkerbruin
-  0xe5677c,  // koraal
-  0x4d7fc7,  // blauw
-  0xa8c94f,  // olijfgroen
- ];
-
+ const CAP_COLORS=[0xd94f4f,0xe8863a,0xf2c744,0x8e5cc7,0xb15a8a,0x3fa4a0,0x6b4a3a,0xd9b3b3,0x7a3e2f,0xe5677c,0x4d7fc7,0xa8c94f];
  function makeMushroom(){
   const g=new THREE.Group();
-  // Steel: crème, iets taps toelopend naar boven
-  const stemH=0.35+Math.random()*0.75;             // 35 cm tot 1,10 m
-  const stemR=0.05+Math.random()*0.05;
-  const stemMat=new THREE.MeshStandardMaterial({color:0xf0e6d2,roughness:.9});
-  const stem=new THREE.Mesh(new THREE.CylinderGeometry(stemR*0.8,stemR,stemH,10),stemMat);
-  stem.position.y=stemH/2;
-  g.add(stem);
-  // Hoed: halve bol, willekeurig breed en plat/bol
-  const capR=0.20+Math.random()*0.32;
-  const capH=capR*(0.5+Math.random()*0.4);
+  const stemH=0.35+Math.random()*0.75, stemR=0.05+Math.random()*0.05;
+  const stem=new THREE.Mesh(new THREE.CylinderGeometry(stemR*0.8,stemR,stemH,10),
+    new THREE.MeshStandardMaterial({color:0xf0e6d2,roughness:.9}));
+  stem.position.y=stemH/2; g.add(stem);
+  const capR=0.20+Math.random()*0.32, capH=capR*(0.5+Math.random()*0.4);
   const capColor=CAP_COLORS[(Math.random()*CAP_COLORS.length)|0];
-  const capMat=new THREE.MeshStandardMaterial({color:capColor,roughness:.75});
-  const cap=new THREE.Mesh(new THREE.SphereGeometry(capR,16,12,0,Math.PI*2,0,Math.PI/2),capMat);
-  cap.scale.y=capH/capR;
-  cap.position.y=stemH*0.96;
-  g.add(cap);
-  // Rotatie + lichte kanteling voor natuurlijke variatie
+  const cap=new THREE.Mesh(new THREE.SphereGeometry(capR,16,12,0,Math.PI*2,0,Math.PI/2),
+    new THREE.MeshStandardMaterial({color:capColor,roughness:.75}));
+  cap.scale.y=capH/capR; cap.position.y=stemH*0.96; g.add(cap);
   g.rotation.y=Math.random()*Math.PI*2;
-  g.rotation.x=(Math.random()-0.5)*0.18;
-  g.rotation.z=(Math.random()-0.5)*0.18;
+  g.rotation.x=(Math.random()-0.5)*0.18; g.rotation.z=(Math.random()-0.5)*0.18;
   return g;
  }
-
- // Ligt (x,z) binnen of pal tegen het huis?
- function insideHouse(x,z,pad){
-  return x>XW-pad && x<XE+pad && z>ZN-pad && z<ZS+pad;
- }
-
+ function insideHouse(x,z,pad){return x>XW-pad && x<XE+pad && z>ZN-pad && z<ZS+pad;}
  let mushroomGroup=null;
  function spawnMushrooms(n){
   if(mushroomGroup){scene.remove(mushroomGroup);mushroomGroup=null;}
   mushroomGroup=new THREE.Group();
   const placed=[];
-  // Zoekzone: huis + ruime marge (x -12..12, z -18..10)
-  const XMIN=-12, XMAX=12, ZMIN=-18, ZMAX=10;
-  let tries=0, maxTries=n*40;
+  const XMIN=-12,XMAX=12,ZMIN=-18,ZMAX=10;
+  let tries=0,maxTries=n*40;
   while(placed.length<n && tries<maxTries){
    tries++;
-   const x=XMIN+Math.random()*(XMAX-XMIN);
-   const z=ZMIN+Math.random()*(ZMAX-ZMIN);
-   if(insideHouse(x,z,0.5)) continue;             // niet in of tegen het huis
+   const x=XMIN+Math.random()*(XMAX-XMIN), z=ZMIN+Math.random()*(ZMAX-ZMIN);
+   if(insideHouse(x,z,0.5)) continue;
    let tooClose=false;
    for(const p of placed){ if(Math.hypot(p.x-x,p.z-z)<0.8){tooClose=true;break;} }
    if(tooClose) continue;
-   const m=makeMushroom();
-   m.position.set(x,0,z);
-   mushroomGroup.add(m);
+   const m=makeMushroom(); m.position.set(x,0,z); mushroomGroup.add(m);
    placed.push({x,z});
   }
   scene.add(mushroomGroup);
   console.log('[3D] '+placed.length+' paddenstoelen geplaatst');
  }
-
  spawnMushrooms(60);
  document.querySelector('#mush').onclick=()=>{spawnMushrooms(60);setStatus('Paddenstoelen opnieuw geplaatst.','ok');};
 
  // ---------------- 3D-model op de verdieping ----------------
- // Coördinaten op de verdieping:
- //   x: -4 (west) .. +4 (oost)
- //   z: +3 (voorkant/voordeur) .. -3 (achterkant/binnendeur naar de gang)
- //   "naar voor" = richting van de voordeur = z groter
- //   "naar achter" = richting van de gang = z kleiner
  const MODEL_X=0, MODEL_Z=0.5;
- const MODEL_Y=LEVEL+0.02;               // op de verdiepingsvloer
- const MODEL_TARGET=2.0;                 // langste zijde in meters
+ const MODEL_Y=LEVEL+0.02;
+ const MODEL_TARGET=2.0;
  const AUTO_GLB='./model.glb';
  const AUTO_STL='./model.stl';
  const STL_ROT={x:0, y:0, z:0};
@@ -212,32 +352,23 @@ try {
  const dracoLoader=new DRACOLoader();
  dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/libs/draco/gltf/');
  dracoLoader.setDecoderConfig({type:'js'});
-
  const gltfLoader=new GLTFLoader();
  gltfLoader.setDRACOLoader(dracoLoader);
  const stlLoader=new STLLoader();
-
  const isFileProtocol=location.protocol==='file:';
- console.log('[3D] Positie:', MODEL_X, MODEL_Y, MODEL_Z, '| MODEL_TARGET =', MODEL_TARGET, 'm');
 
  function buildDefaultStep(){
   const g=new THREE.Group();
   const mat=new THREE.MeshStandardMaterial({color:0xc9b18a,roughness:.85,metalness:.05});
   const dark=new THREE.MeshStandardMaterial({color:0x8a7455,roughness:.9});
-  const tiers=[
-   {w:1.00,d:0.90,h:0.20,m:mat},
-   {w:0.72,d:0.62,h:0.20,m:dark},
-   {w:0.44,d:0.34,h:0.20,m:mat},
-  ];
+  const tiers=[{w:1.00,d:0.90,h:0.20,m:mat},{w:0.72,d:0.62,h:0.20,m:dark},{w:0.44,d:0.34,h:0.20,m:mat}];
   let y=0;
   for(const t of tiers){
    const m=new THREE.Mesh(new THREE.BoxGeometry(t.w,t.h,t.d),t.m);
-   m.position.set(0,y+t.h/2,0);g.add(m);
-   y+=t.h;
+   m.position.set(0,y+t.h/2,0);g.add(m);y+=t.h;
   }
   return g;
  }
-
  function placeModel(root){
   if(modelRoot){
    scene.remove(modelRoot);
@@ -247,25 +378,17 @@ try {
   }
   modelRoot=root;
   root.position.set(MODEL_X,MODEL_Y,MODEL_Z);
-  scene.add(root);
-  root.updateMatrixWorld(true);
+  scene.add(root); root.updateMatrixWorld(true);
   modelBox=new THREE.Box3().setFromObject(root);
   obstacles.push(modelBox);
   root.traverse(o=>{if(o.isMesh){pickables.push(o);modelPickables.push(o);}});
-  const sz=new THREE.Vector3();modelBox.getSize(sz);
-  console.log('[3D] Box op de wereld: x',modelBox.min.x.toFixed(2),'..',modelBox.max.x.toFixed(2),
-              '| y',modelBox.min.y.toFixed(2),'..',modelBox.max.y.toFixed(2),
-              '| z',modelBox.min.z.toFixed(2),'..',modelBox.max.z.toFixed(2));
  }
-
  function fitAndPlace(obj){
   obj.updateMatrixWorld(true);
   let b=new THREE.Box3().setFromObject(obj);
   const size=new THREE.Vector3();b.getSize(size);
   const maxDim=Math.max(size.x,size.y,size.z)||1;
-  const factor=MODEL_TARGET/maxDim;
-  console.log('[3D] Originele grootte:', size.toArray().map(v=>v.toFixed(3)).join(' x '), '| schaalfactor:', factor.toFixed(3));
-  obj.scale.setScalar(factor);
+  obj.scale.setScalar(MODEL_TARGET/maxDim);
   obj.updateMatrixWorld(true);
   b=new THREE.Box3().setFromObject(obj);
   const c=new THREE.Vector3();b.getCenter(c);
@@ -275,83 +398,42 @@ try {
   const sz=new THREE.Vector3();new THREE.Box3().setFromObject(wrap).getSize(sz);
   setStatus('Model op de verdieping — '+sz.x.toFixed(2)+' × '+sz.y.toFixed(2)+' × '+sz.z.toFixed(2)+' m','ok');
  }
-
  function makeStlWrap(geom){
   geom.computeVertexNormals();
   const mat=new THREE.MeshStandardMaterial({color:0xc9b18a,roughness:.8,metalness:.1,side:THREE.DoubleSide});
   const mesh=new THREE.Mesh(geom,mat);
   mesh.rotation.set(STL_ROT.x, STL_ROT.y, STL_ROT.z);
-  const wrap=new THREE.Group();wrap.add(mesh);
-  return wrap;
+  const wrap=new THREE.Group();wrap.add(mesh); return wrap;
  }
-
  async function checkUrl(url){
-  try{
-   const r=await fetch(url,{method:'HEAD'});
-   return {ok:r.ok, status:r.status, statusText:r.statusText};
-  }catch(e){
-   return {ok:false, status:0, statusText:e.message||'netwerk geblokkeerd'};
-  }
+  try{const r=await fetch(url,{method:'HEAD'});return {ok:r.ok,status:r.status,statusText:r.statusText};}
+  catch(e){return {ok:false,status:0,statusText:e.message||'netwerk geblokkeerd'};}
  }
-
- function useDefault(reason,cls){
-  fitAndPlace(buildDefaultStep());
-  setStatus((reason?reason+' ':'')+'Standaard step-model op de verdieping, langste zijde '+MODEL_TARGET+' m.', cls||'');
- }
-
+ function useDefault(reason,cls){fitAndPlace(buildDefaultStep());setStatus((reason?reason+' ':'')+'Standaard step-model op de verdieping.',''||cls);}
  async function tryStl(){
   const chk=await checkUrl(AUTO_STL);
   if(!chk.ok){
-   const hint=isFileProtocol
-    ? 'Je opent via file://. Open de pagina via een webserver (bijv. `python3 -m http.server 8000`) en herlaad.'
-    : 'Controleer of `model.stl` exact zo heet en in dezelfde map staat als de HTML.';
-   useDefault('Geen model.glb of model.stl geladen. '+hint,'err');
-   return;
+   const hint=isFileProtocol?'Open via webserver (niet file://).':'Controleer of model.stl in dezelfde map staat.';
+   useDefault('Geen model.glb of model.stl geladen. '+hint,'err'); return;
   }
   stlLoader.load(AUTO_STL,
    geom=>{try{fitAndPlace(makeStlWrap(geom));}catch(err){useDefault('STL kon niet geplaatst worden.');console.error(err);}},
-   undefined,
-   err=>{useDefault('STL laden mislukt.');console.error(err);}
-  );
+   undefined, err=>{useDefault('STL laden mislukt.');console.error(err);});
  }
-
  async function autoLoad(){
-  if(isFileProtocol){
-   useDefault('Auto-load werkt niet via file://.','err');
-   return;
-  }
+  if(isFileProtocol){useDefault('Auto-load werkt niet via file://.','err');return;}
   const chk=await checkUrl(AUTO_GLB);
-  if(!chk.ok){
-   setStatus('model.glb niet gevonden (HTTP '+chk.status+'). Ik probeer model.stl…');
-   tryStl();
-   return;
-  }
+  if(!chk.ok){setStatus('model.glb niet gevonden. Probeer model.stl…');tryStl();return;}
   gltfLoader.load(AUTO_GLB,
-   g=>{
-    try{fitAndPlace(g.scene);console.log('[3D] GLB geladen uit', AUTO_GLB);}
-    catch(err){console.error('[3D] Plaatsen mislukt:',err);useDefault('GLB kon niet geplaatst worden: '+err.message,'err');}
-   },
-   undefined,
-   err=>{
-    console.error('[3D] GLB laden mislukt:',err);
-    const msg=(err&&err.message)?err.message:'onbekende fout';
-    setStatus('GLB laden mislukt: '+msg+' — ik probeer model.stl…','err');
-    tryStl();
-   }
-  );
+   g=>{try{fitAndPlace(g.scene);console.log('[3D] GLB geladen');}catch(err){useDefault('GLB kon niet geplaatst worden: '+err.message,'err');}},
+   undefined, err=>{setStatus('GLB laden mislukt. Probeer model.stl…','err');tryStl();});
  }
-
  autoLoad();
 
- document.querySelector('#resetModel').onclick=()=>{
-  fitAndPlace(buildDefaultStep());
-  setStatus('Standaard step-model op de verdieping, langste zijde '+MODEL_TARGET+' m.','ok');
- };
-
+ document.querySelector('#resetModel').onclick=()=>{fitAndPlace(buildDefaultStep());setStatus('Standaard step-model geplaatst.','ok');};
  document.querySelector('#model').addEventListener('change',e=>{
   const f=e.target.files[0];if(!f)return;
-  const name=f.name.toLowerCase();
-  const url=URL.createObjectURL(f);
+  const name=f.name.toLowerCase(); const url=URL.createObjectURL(f);
   setStatus('3D-model laden…');
   const onErr=err=>{URL.revokeObjectURL(url);setStatus('3D-model kon niet geladen worden: '+(err?.message||err),'err');console.error(err);};
   if(name.endsWith('.stl')){
@@ -399,7 +481,7 @@ try {
   return first?.userData.url?first:null;
  }
  function select(obj){selected=obj;selection.textContent=obj?obj.userData.title:'Geen foto geselecteerd';open.hidden=!obj;if(obj)open.href=obj.userData.url;else open.removeAttribute('href')}
- lockButton.onclick=async()=>{try{if(!canvas.requestPointerLock)throw new Error('Muis vastzetten niet beschikbaar; gebruik slepen of de joystick.');await canvas.requestPointerLock()}catch(e){setStatus(e.message,'err')}};
+ lockButton.onclick=async()=>{try{if(!canvas.requestPointerLock)throw new Error('Muis vastzetten niet beschikbaar.');await canvas.requestPointerLock()}catch(e){setStatus(e.message,'err')}};
  document.addEventListener('pointerlockchange',()=>{keys.clear();look=null;hint.textContent=locked()?'Richt op een foto en klik; de muis wordt vrijgegeven.':'Slepen = rondkijken'});
  document.addEventListener('mousemove',e=>{if(locked())rotate(e.movementX,e.movementY)});
  canvas.addEventListener('pointerdown',e=>{if(locked()||look||e.button!==0)return;look={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,moved:false};canvas.setPointerCapture(e.pointerId)});
