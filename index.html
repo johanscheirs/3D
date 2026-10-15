@@ -208,7 +208,7 @@ try {
   ctx.fillStyle='#131313'; ctx.fillRect(0,0,c.width,c.height);
   ctx.fillStyle='#c0392b'; ctx.fillRect(0,0,c.width,80);
   ctx.fillStyle='#f1c40f'; ctx.font='bold 52px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText('DÖNERBURG',c.width/2,40);
+  ctx.fillText('VELES KEBAB',c.width/2,40);
   const items=[['DÖNER','6,50'],['DÜRÜM','7,00'],['FALAFEL','6,00'],['PIZZA','7,50'],['POMMES','3,50'],['AYRAN','1,50'],['COLA','2,00'],['WASSER','1,00']];
   const colW=c.width/2, rowH=72, topY=130;
   ctx.font='bold 34px system-ui';
@@ -237,29 +237,40 @@ try {
   new THREE.MeshBasicMaterial({map:makeNeonTexture('DÖNER','#ff2a2a')}));
  neon1.position.set(XW+0.09,LEVEL2+2.0,-2); neon1.rotation.y=Math.PI/2; scene.add(neon1);
  const neon2=new THREE.Mesh(new THREE.PlaneGeometry(3.5,1.75),
-  new THREE.MeshBasicMaterial({map:makeNeonTexture('KEBAP','#ffcc22')}));
+  new THREE.MeshBasicMaterial({map:makeNeonTexture('KEBAB','#ffcc22')}));
  neon2.position.set(0,LEVEL2+2.0,ZS-0.09); neon2.rotation.y=Math.PI; scene.add(neon2);
 
  // --- BUITENGEVEL: grote neonreclame boven de voordeur ---
  // De zuidmuur buitenvlak ligt op z = ZS + TH/2 = 3.08, dus de sign staat op z = 3.09.
- function makeFacadeNeonTexture(text,color){
+ function makeFacadeNeonTexture(text,color,maxFontSize=200){
   const c=document.createElement('canvas');c.width=1400;c.height=400;
   const ctx=c.getContext('2d');
   ctx.fillStyle='#0a0a0a'; ctx.fillRect(0,0,c.width,c.height);
-  // donkere rand met rode strip
   ctx.fillStyle='#c0392b'; ctx.fillRect(0,0,c.width,20); ctx.fillRect(0,c.height-20,c.width,20);
-  // neon gloed
-  ctx.shadowColor=color; ctx.shadowBlur=60;
-  ctx.fillStyle=color; ctx.font='bold 200px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+
+  // Automatisch passend maken: begin bij maxFontSize en krimp tot de tekst
+  // binnen 88% van de canvasbreedte past.
+  let fs=maxFontSize;
+  const maxWidth=c.width*0.88;
+  ctx.font='bold '+fs+'px system-ui';
+  const w=ctx.measureText(text).width;
+  if(w>maxWidth) fs=Math.floor(fs*maxWidth/w);
+
+  ctx.shadowColor=color; ctx.shadowBlur=fs*0.3;
+  ctx.fillStyle=color; ctx.font='bold '+fs+'px system-ui';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText(text,c.width/2,c.height/2);
-  // witte kern voor echt neon-effect
-  ctx.shadowBlur=0; ctx.fillStyle='#fff5f5'; ctx.font='bold 200px system-ui';
+
+  ctx.shadowBlur=0; ctx.fillStyle='#fff5f5';
+  ctx.font='bold '+fs+'px system-ui';
   ctx.globalAlpha=0.35; ctx.fillText(text,c.width/2,c.height/2); ctx.globalAlpha=1;
+
   const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
  }
+ 
  const facadeNeon=new THREE.Mesh(
   new THREE.PlaneGeometry(5.5,1.57),
-  new THREE.MeshBasicMaterial({map:makeFacadeNeonTexture('DÖNERBURG','#ff2a2a')})
+  new THREE.MeshBasicMaterial({map:makeFacadeNeonTexture('VELES KEBAB','#ff2a2a')})
  );
  facadeNeon.position.set(0,6.5,ZS+TH/2+0.01);
  scene.add(facadeNeon);
@@ -269,10 +280,10 @@ try {
  scene.add(facadeGlow);
 
  // Kleine ophangbord boven de voordeur op de begane grond
- const doorSign=new THREE.Mesh(
-  new THREE.PlaneGeometry(2.6,0.7),
-  new THREE.MeshBasicMaterial({map:makeFacadeNeonTexture('DÖNER • KEBAP','#ffcc22')})
- );
+	const doorSign=new THREE.Mesh(
+	 new THREE.PlaneGeometry(2.6,0.7),
+	 new THREE.MeshBasicMaterial({map:makeFacadeNeonTexture('DÖNER • KEBAB','#ffcc22',110)})
+	);
  doorSign.position.set(0,2.35,ZS+TH/2+0.01);
  scene.add(doorSign);
 
