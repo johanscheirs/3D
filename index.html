@@ -210,8 +210,8 @@ try {
   ctx.fillStyle='#131313'; ctx.fillRect(0,0,c.width,c.height);
   ctx.fillStyle='#c0392b'; ctx.fillRect(0,0,c.width,80);
   ctx.fillStyle='#f1c40f'; ctx.font='bold 52px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText('DÖNERBURG',c.width/2,40);
-  const items=[['DÖNER','6,50'],['DÜRÜM','7,00'],['FALAFEL','6,00'],['PIZZA','7,50'],['POMMES','3,50'],['AYRAN','1,50'],['COLA','2,00'],['WASSER','1,00']];
+  ctx.fillText('KEBAB VELES',c.width/2,40);
+  const items=[['DÖNER','6,50'],['DÜRÜM','7,00'],['ADANA','6,00'],['KETO PIZZA','7,50'],['FRIET','3,50'],['AYRAN','1,50'],['COLA','2,00'],['WATER','1,00']];
   const colW=c.width/2, rowH=72, topY=130;
   ctx.font='bold 34px system-ui';
   items.forEach((it,i)=>{
@@ -263,7 +263,7 @@ try {
  }
  const facadeNeon=new THREE.Mesh(
   new THREE.PlaneGeometry(5.5,1.57),
-  new THREE.MeshBasicMaterial({map:makeFacadeNeonTexture('DÖNERBURG','#ff2a2a')})
+  new THREE.MeshBasicMaterial({map:makeFacadeNeonTexture('KEBAB VELES','#ff2a2a')})
  );
  facadeNeon.position.set(0,6.5,ZS+TH/2+0.01);
  scene.add(facadeNeon);
