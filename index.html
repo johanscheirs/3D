@@ -46,7 +46,6 @@ try {
  const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,140);camera.position.set(0,1.7,8);camera.rotation.order='YXZ';
  const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(renderer.domElement);const canvas=renderer.domElement;
 
- // ---------------- verlichting: vier knoppen ----------------
  const LIGHT_AMBIENT=0.35;
  const LIGHT_SUN=0.55;
  const LIGHT_INDOOR=0.35;
@@ -128,7 +127,8 @@ try {
  const counterBodyMat=new THREE.MeshStandardMaterial({color:0xf5f0e6,roughness:0.5});
  const steel=new THREE.MeshStandardMaterial({color:0xb9bdc1,roughness:0.3,metalness:0.8});
  const glassMat=new THREE.MeshStandardMaterial({color:0xcfe8ee,roughness:0.1,transparent:true,opacity:0.35,side:THREE.DoubleSide});
- const meatMat=new THREE.MeshStandardMaterial({color:0x8b4a2b,roughness:0.8});
+ const meatMat=new THREE.MeshStandardMaterial({color:0x9b5533,roughness:0.85});
+ const meatDarkMat=new THREE.MeshStandardMaterial({color:0x6e3a1d,roughness:0.9});
  const seatMat=new THREE.MeshStandardMaterial({color:0x7a1c1c,roughness:0.6});
  const woodMat=new THREE.MeshStandardMaterial({color:0x8a5a2b,roughness:0.7});
  const neonRedMat=new THREE.MeshBasicMaterial({color:0xff2a2a});
@@ -160,8 +160,8 @@ try {
   scene.add(m);
  }
 
- // --- Counter: 1 m zuidelijker, oostkant 0,9 m korter (vrij van trapgat en koelkast) ---
- const CX1=-3.2, CX2=2.3, CZ1=-8.5, CZ2=-7.6, CH=1.1;
+ // --- Counter: 0,6 m naar voren zodat de kegel vrij blijft van de noordmuur ---
+ const CX1=-3.2, CX2=2.3, CZ1=-7.9, CZ2=-7.0, CH=1.1;
  const counterBody=new THREE.Mesh(new THREE.BoxGeometry(CX2-CX1,CH,CZ2-CZ1),counterBodyMat);
  counterBody.position.set((CX1+CX2)/2,LEVEL2+CH/2,(CZ1+CZ2)/2);
  scene.add(counterBody);solid(counterBody);
@@ -175,33 +175,72 @@ try {
  glassCase.position.set((CX1+CX2)/2,LEVEL2+CH+0.06+caseH/2,(CZ1+CZ2)/2);
  scene.add(glassCase);
 
+ const caseTopY=LEVEL2+CH+0.06;
+ const caseCX=(CX1+CX2)/2, caseCZ=(CZ1+CZ2)/2;
+ const saladData=[0xd94f4f,0x8fbf4f,0xd8ecb0,0x6b3a7a,0xf5f0e6,0xe8863a,0xf1c40f,0x2c2c2c];
+ const nS=saladData.length;
+ const contW=(caseW-0.06)/nS;
+ for(let i=0;i<nS;i++){
+  const cx=caseCX-caseW/2+0.03+contW/2+i*contW;
+  const pan=new THREE.Mesh(new THREE.BoxGeometry(contW-0.012,0.13,caseD-0.06),steel);
+  pan.position.set(cx,caseTopY+0.065,caseCZ); scene.add(pan);
+  const content=new THREE.Mesh(
+   new THREE.BoxGeometry(contW-0.05,0.09,caseD-0.11),
+   new THREE.MeshStandardMaterial({color:saladData[i],roughness:0.9})
+  );
+  content.position.set(cx,caseTopY+0.115,caseCZ); scene.add(content);
+ }
+
  const reg=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.35,0.35),new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.4,metalness:0.3}));
- reg.position.set(CX2-0.9,LEVEL2+CH+0.06+0.175,CZ2-0.4);
+ reg.position.set(CX2-0.25,LEVEL2+CH+0.06+0.175,CZ2-0.4);
  scene.add(reg);
  const regScreen=new THREE.Mesh(new THREE.PlaneGeometry(0.25,0.15),new THREE.MeshBasicMaterial({color:0x9effa0}));
- regScreen.position.set(CX2-0.9,LEVEL2+CH+0.06+0.35+0.02,CZ2-0.4);
+ regScreen.position.set(CX2-0.25,LEVEL2+CH+0.06+0.35+0.02,CZ2-0.4);
  regScreen.rotation.x=-Math.PI/4;
  scene.add(regScreen);
 
- const spitX=-0.7, spitZ=-9.75, meatH=1.2, meatR=0.35;
- const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,2.4,12),steel);
- pole.position.set(spitX,LEVEL2+1.2,spitZ); scene.add(pole);
- const meat=new THREE.Mesh(new THREE.CylinderGeometry(0.08,meatR,meatH,20),meatMat);
- meat.position.set(spitX,LEVEL2+0.65,spitZ); scene.add(meat);
- const meatCap=new THREE.Mesh(new THREE.ConeGeometry(meatR,meatR*1.5,20),meatMat);
- meatCap.position.set(spitX,LEVEL2+0.65+meatH/2+meatR*0.75,spitZ); scene.add(meatCap);
+ // --- Vleeskegel (döner): naar voren geschoven, vrij van de noordmuur ---
+ const spitX=-0.7, spitZ=-9.3;
+ const meatH=1.5, meatBotR=0.44, meatTopR=0.10;
+ const meatBaseY=LEVEL2+0.85;
 
- const backPanel=new THREE.Mesh(new THREE.BoxGeometry(1.4,1.8,0.1),new THREE.MeshStandardMaterial({color:0x8c8f92,metalness:0.7,roughness:0.35}));
- backPanel.position.set(spitX,LEVEL2+1.1,ZN+0.08);
+ const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,2.8,12),steel);
+ pole.position.set(spitX,LEVEL2+1.4,spitZ); scene.add(pole);
+
+ const dripTray=new THREE.Mesh(new THREE.CylinderGeometry(meatBotR+0.06,meatBotR+0.06,0.05,24),steel);
+ dripTray.position.set(spitX,meatBaseY-0.025,spitZ); scene.add(dripTray);
+
+ const meat=new THREE.Mesh(new THREE.CylinderGeometry(meatTopR,meatBotR,meatH,28),meatMat);
+ meat.position.set(spitX,meatBaseY+meatH/2,spitZ); scene.add(meat);
+
+ const nLayers=12;
+ for(let i=0;i<nLayers;i++){
+  const t=i/(nLayers-1);
+  const r=meatBotR*(1-t)+meatTopR*t;
+  const y=meatBaseY+0.05+t*(meatH-0.10);
+  const ring=new THREE.Mesh(new THREE.CylinderGeometry(r*1.012,r*1.012,0.035,28),meatDarkMat);
+  ring.position.set(spitX,y,spitZ); scene.add(ring);
+ }
+
+ const meatTip=new THREE.Mesh(new THREE.ConeGeometry(meatTopR*1.05,0.35,24),meatMat);
+ meatTip.position.set(spitX,meatBaseY+meatH+0.18,spitZ); scene.add(meatTip);
+
+ const topDisc=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,0.04,16),steel);
+ topDisc.position.set(spitX,meatBaseY+meatH+0.37,spitZ); scene.add(topDisc);
+
+ // Achterpaneel tegen de noordmuur, direct achter de kegel
+ const backPanel=new THREE.Mesh(new THREE.BoxGeometry(1.6,2.0,0.1),new THREE.MeshStandardMaterial({color:0x8c8f92,metalness:0.7,roughness:0.35}));
+ backPanel.position.set(spitX,LEVEL2+1.3,ZN+0.14);
  scene.add(backPanel);
 
- for(const dx of [-0.35,0.35]){
-  const lamp=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.08,0.15),neonRedMat);
-  lamp.position.set(spitX+dx,LEVEL2+2.05,spitZ+0.05);
+ // Rode warmtelampen boven de kegel
+ for(const dx of [-0.4,0.4]){
+  const lamp=new THREE.Mesh(new THREE.BoxGeometry(0.25,0.08,0.15),neonRedMat);
+  lamp.position.set(spitX+dx,LEVEL2+2.5,spitZ+0.05);
   scene.add(lamp);
  }
- const spitLight=new THREE.PointLight(0xff3a1a,12*LIGHT_ACCENT,7,2);
- spitLight.position.set(spitX,LEVEL2+1.4,spitZ+0.3);
+ const spitLight=new THREE.PointLight(0xff3a1a,15*LIGHT_ACCENT,7,2);
+ spitLight.position.set(spitX,LEVEL2+1.8,spitZ+0.3);
  scene.add(spitLight);
 
  function makeMenuTexture(){
@@ -222,7 +261,8 @@ try {
   const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
  }
  const menuBoard=new THREE.Mesh(new THREE.PlaneGeometry(4.4,1.54),new THREE.MeshBasicMaterial({map:makeMenuTexture()}));
- menuBoard.position.set(0,LEVEL2+1.98,ZN+0.09);
+ menuBoard.position.set(XW+TH/2+0.01,LEVEL2+1.98,-6.5);
+ menuBoard.rotation.y=Math.PI/2;
  scene.add(menuBoard);
 
  function makeNeonTexture(text,color){
@@ -306,8 +346,9 @@ try {
    p.position.set(x+dx,LEVEL2+0.225,z+dz); scene.add(p);
   }
  }
- makeTable(-2.3,-6.5); makeTable(0.4,-6.5);
- makeTable(-2.3,-2.2); makeTable(0.4,-2.2);
+ // Tafels 0,6 m naar voren; de zuidelijkste blijft staan om de muur vrij te houden.
+ makeTable(-2.3,-5.9); makeTable(0.4,-5.9);
+ makeTable(-2.3,-1.6); makeTable(0.4,-1.6);
  makeTable(-1,1.5);
 
  for(const [x,y,z,i] of [[0,7.8,0,55],[0,7.8,-6,55],[-3,7.8,-3,22],[3,7.8,-1,22]]){
