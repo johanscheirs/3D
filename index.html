@@ -23,7 +23,7 @@
 <body>
 <div id="panel"><details open><summary>Fotogalerij — bediening, afbeeldingen & 3D-model</summary>
 <p>Telefoon: joystick = lopen; over het beeld slepen = rondkijken; kort tikken op een foto = selecteren.</p>
-<p>Computer: WASD / pijltjes = lopen; Shift = sneller; muis slepen = rondkijken. Je kunt ook de muis vastzetten; Esc geeft hem vrij.</p>
+<p>Computer: WASD / pijltjes = lopen; Shift = sneller; muis slepen = rondkijken; <strong>scrollwiel = zoomen</strong>; <strong>middelste muisknop ingedrukt houden = ver inzoomen</strong>. Je kunt ook de muis vastzetten; Esc geeft hem vrij.</p>
 <button id="lock">Muis vastzetten</button> <button id="toggle">Joystick tonen/verbergen</button> <button id="mush">Paddenstoelen opnieuw</button>
 <p>Loop door de voordeur naar binnen, de gang in en neem de trap naar de 2e verdieping. Daar vind je het 3D-model en, via een tweede trap aan de oostmuur, op de 3e verdieping een Dönerbar.</p>
 <p>Selecteer een foto en vervang die tijdelijk door een lokaal bestand:<br><input id="upload" type="file" accept="image/*"><br><small>Er wordt niets geüpload. Herladen herstelt de foto's uit de map afbeeldingen.</small></p>
@@ -46,6 +46,16 @@ try {
  const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.1,140);camera.position.set(0,1.7,8);camera.rotation.order='YXZ';
  const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(renderer.domElement);const canvas=renderer.domElement;
 
+ // ---------------- zoom (FOV) ----------------
+ // Het scrollwiel past de FOV aan; de middelste muisknop zoomt tijdelijk sterk in en veert terug bij loslaten.
+ const FOV_DEFAULT=70;   // standaard gezichtsveld
+ const FOV_MIN=18;       // maximale zoom-in via scrollwiel
+ const FOV_MAX=95;       // maximale zoom-out via scrollwiel
+ const FOV_MIDDLE=22;    // FOV zolang de middelste muisknop ingedrukt is
+ const FOV_STEP=4;       // stapgrootte per scroll-tik
+ let fovTarget=FOV_DEFAULT, middleZoom=false;
+
+ // ---------------- verlichting: vier knoppen ----------------
  const LIGHT_AMBIENT=0.35;
  const LIGHT_SUN=0.55;
  const LIGHT_INDOOR=0.35;
@@ -160,7 +170,6 @@ try {
   scene.add(m);
  }
 
- // --- Counter: 0,6 m naar voren zodat de kegel vrij blijft van de noordmuur ---
  const CX1=-3.2, CX2=2.3, CZ1=-7.9, CZ2=-7.0, CH=1.1;
  const counterBody=new THREE.Mesh(new THREE.BoxGeometry(CX2-CX1,CH,CZ2-CZ1),counterBodyMat);
  counterBody.position.set((CX1+CX2)/2,LEVEL2+CH/2,(CZ1+CZ2)/2);
@@ -199,7 +208,6 @@ try {
  regScreen.rotation.x=-Math.PI/4;
  scene.add(regScreen);
 
- // --- Vleeskegel (döner): naar voren geschoven, vrij van de noordmuur ---
  const spitX=-0.7, spitZ=-9.3;
  const meatH=1.5, meatBotR=0.44, meatTopR=0.10;
  const meatBaseY=LEVEL2+0.85;
@@ -228,12 +236,10 @@ try {
  const topDisc=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,0.04,16),steel);
  topDisc.position.set(spitX,meatBaseY+meatH+0.37,spitZ); scene.add(topDisc);
 
- // Achterpaneel tegen de noordmuur, direct achter de kegel
  const backPanel=new THREE.Mesh(new THREE.BoxGeometry(1.6,2.0,0.1),new THREE.MeshStandardMaterial({color:0x8c8f92,metalness:0.7,roughness:0.35}));
  backPanel.position.set(spitX,LEVEL2+1.3,ZN+0.14);
  scene.add(backPanel);
 
- // Rode warmtelampen boven de kegel
  for(const dx of [-0.4,0.4]){
   const lamp=new THREE.Mesh(new THREE.BoxGeometry(0.25,0.08,0.15),neonRedMat);
   lamp.position.set(spitX+dx,LEVEL2+2.5,spitZ+0.05);
@@ -346,7 +352,6 @@ try {
    p.position.set(x+dx,LEVEL2+0.225,z+dz); scene.add(p);
   }
  }
- // Tafels 0,6 m naar voren; de zuidelijkste blijft staan om de muur vrij te houden.
  makeTable(-2.3,-5.9); makeTable(0.4,-5.9);
  makeTable(-2.3,-1.6); makeTable(0.4,-1.6);
  makeTable(-1,1.5);
@@ -550,6 +555,23 @@ try {
  lockButton.onclick=async()=>{try{if(!canvas.requestPointerLock)throw new Error('Muis vastzetten niet beschikbaar.');await canvas.requestPointerLock()}catch(e){setStatus(e.message,'err')}};
  document.addEventListener('pointerlockchange',()=>{keys.clear();look=null;hint.textContent=locked()?'Richt op een foto en klik; de muis wordt vrijgegeven.':'Slepen = rondkijken'});
  document.addEventListener('mousemove',e=>{if(locked())rotate(e.movementX,e.movementY)});
+
+ // ====== scrollwiel = zoomen ======
+ canvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  fovTarget=THREE.MathUtils.clamp(fovTarget+Math.sign(e.deltaY)*FOV_STEP,FOV_MIN,FOV_MAX);
+  setStatus('Zoom — gezichtsveld '+Math.round(fovTarget)+'° (lager = dichterbij)');
+ },{passive:false});
+
+ // ====== middelste muisknop = tijdelijk ver inzoomen ======
+ canvas.addEventListener('pointerdown',e=>{
+  if(e.button===1){e.preventDefault();middleZoom=true;setStatus('Inzoomen (middelste knop)…');}
+ },{passive:false});
+ canvas.addEventListener('pointerup',e=>{if(e.button===1)middleZoom=false;});
+ canvas.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
+ // Ook het midden-klik "autoscroll" pictogram van sommige browsers onderdrukken:
+ canvas.addEventListener('mousedown',e=>{if(e.button===1)e.preventDefault();},{passive:false});
+
  canvas.addEventListener('pointerdown',e=>{if(locked()||look||e.button!==0)return;look={id:e.pointerId,x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY,moved:false};canvas.setPointerCapture(e.pointerId)});
  canvas.addEventListener('pointermove',e=>{if(locked()||!look||e.pointerId!==look.id)return;const dx=e.clientX-look.x,dy=e.clientY-look.y;if(Math.hypot(e.clientX-look.startX,e.clientY-look.startY)>8)look.moved=true;if(look.moved)rotate(dx,dy);look.x=e.clientX;look.y=e.clientY});
  canvas.addEventListener('pointerup',e=>{if(!look||look.id!==e.pointerId)return;if(!look.moved){const r=canvas.getBoundingClientRect();select(pick((e.clientX-r.left)/r.width*2-1,1-(e.clientY-r.top)/r.height*2))}look=null});
@@ -564,7 +586,7 @@ try {
  stick.addEventListener('pointermove',e=>{if(e.pointerId===joyId)updateJoy(e)});
  for(const name of ['pointerup','pointercancel','lostpointercapture'])stick.addEventListener(name,e=>{if(e.pointerId===joyId)resetJoy()});
  document.querySelector('#toggle').onclick=()=>{resetJoy();document.body.classList.toggle('touch')};
- function resetInput(){keys.clear();look=null;resetJoy()}
+ function resetInput(){keys.clear();look=null;resetJoy();middleZoom=false;}
  window.addEventListener('blur',resetInput);document.addEventListener('visibilitychange',()=>{if(document.hidden)resetInput()});open.addEventListener('click',resetInput);
  document.querySelector('#upload').addEventListener('change',e=>{
   const file=e.target.files[0],obj=selected;if(!file)return;
@@ -590,6 +612,14 @@ try {
 
  function animate(now){
   requestAnimationFrame(animate);const dt=Math.min((now-previous)/1000,.05);previous=now;
+
+  // FOV soepel naar doel laten lopen
+  const desiredFov=middleZoom?FOV_MIDDLE:fovTarget;
+  if(Math.abs(camera.fov-desiredFov)>0.05){
+   camera.fov+=(desiredFov-camera.fov)*Math.min(1,dt*12);
+   camera.updateProjectionMatrix();
+  }
+
   let forward=Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'))-joyY;
   let side=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+joyX;
   const length=Math.max(1,Math.hypot(forward,side));forward/=length;side/=length;
